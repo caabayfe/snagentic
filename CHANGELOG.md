@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `install.sh` (macOS) and `install.ps1` (Windows): one-line, per-user installers that
+  verify `SHA256SUMS`, work with unsigned builds and run `snagentic copilot install`.
+  Each release attaches both scripts.
+
+### Changed
+
+- A version tag without signing secrets publishes an unsigned release, marked in the
+  title, instead of failing. The Homebrew cask is still published only for signed
+  builds.
+
 ## 0.2.0
 
 ### Removed (breaking)

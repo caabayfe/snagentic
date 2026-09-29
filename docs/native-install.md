@@ -16,15 +16,64 @@ Windows Credential Manager. They are not read from shell variables or `.env` fil
 
 ## Install
 
+### Install scripts (recommended, works with unsigned builds)
+
+**macOS** (Apple silicon or Intel):
+
+```bash
+curl -fsSL https://github.com/caabayfe/snagentic/releases/latest/download/install.sh | sh
+```
+
+**Windows** (PowerShell, no administrator rights needed):
+
+```powershell
+irm https://github.com/caabayfe/snagentic/releases/latest/download/install.ps1 | iex
+```
+
+The scripts are `packaging/install/install.sh` and `packaging/install/install.ps1`. Each one:
+
+- downloads the archive for your platform and checks it against the release `SHA256SUMS`;
+- installs it for the current user only:
+  - macOS: `~/.local/share/snagentic`, linked as `~/.local/bin/snagentic`;
+  - Windows: `%LOCALAPPDATA%\Programs\snagentic`, added to your user `PATH`;
+- runs `snagentic copilot install`.
+
+To upgrade, run the same command again.
+
+Early releases are not code-signed. They still run without warnings, because
+`curl` and PowerShell do not mark downloaded files as coming from the internet. That
+mark is what triggers macOS Gatekeeper and Windows SmartScreen. For the same reason, if
+you download an archive in a browser instead, you must clear the mark yourself:
+
+- macOS: `xattr -dr com.apple.quarantine snagentic`
+- Windows: `Get-ChildItem snagentic -Recurse | Unblock-File`
+
+Optional settings for both scripts:
+
+| Variable | Meaning |
+| --- | --- |
+| `SNAGENTIC_VERSION` | Install a specific version, for example `0.2.0`. |
+| `SNAGENTIC_HOME` | Choose the application directory. |
+| `SNAGENTIC_BIN_DIR` | Choose where the link is created (macOS only). |
+| `SNAGENTIC_DOWNLOAD_URL` | Install from another URL or a local folder, such as an internal mirror or a shared drive. |
+| `SNAGENTIC_NO_COPILOT=1` | Skip `snagentic copilot install`. |
+
+With `SNAGENTIC_DOWNLOAD_URL` you can share the tool from a private location. The folder
+needs the archives and `SHA256SUMS` from a release.
+
+### Other options
+
 | Platform | Package | Command |
 | --- | --- | --- |
-| macOS (Apple silicon, Intel) | Homebrew cask | `brew install --cask <owner>/snagentic/snagentic` |
+| macOS (Apple silicon, Intel) | Homebrew cask (signed releases only) | `brew install --cask <owner>/snagentic/snagentic` |
 | Windows x64 | WinGet | `winget install <Publisher>.snagentic` |
 | Either | Release archive | Extract `snagentic-<version>-<target>.(tar.gz\|zip)` and add the `snagentic/` folder to `PATH` |
 
-Before extracting a release archive, check it against the `SHA256SUMS` file. Release
-builds are signed. macOS builds are also notarized, and Windows builds are Authenticode
-signed. The package templates are in `packaging/homebrew/` and `packaging/winget/`.
+A version tag publishes a signed release when the signing secrets are configured in the
+`release` environment: macOS builds are signed and notarized, and Windows builds are
+Authenticode signed. Without the secrets, the tag publishes the same archives unsigned,
+with "(unsigned)" in the release title and no Homebrew cask. The package templates are
+in `packaging/homebrew/` and `packaging/winget/`.
 
 ### Homebrew
 
@@ -55,8 +104,8 @@ Maintainers need the following once:
 2. **Tap repository** `<owner>/homebrew-snagentic`, containing a `Casks/` folder.
 3. **Apple Developer ID Application certificate and notarization.** Configure the
    `MACOS_*` and `APPLE_*` secrets in the `release` environment. Without them the
-   workflow refuses to publish, because macOS Gatekeeper blocks quarantined unsigned
-   binaries that were downloaded by Homebrew.
+   workflow publishes no cask, because Homebrew adds the quarantine mark to its downloads
+   and macOS Gatekeeper then blocks unsigned binaries. Use the install scripts instead.
 4. **Repository variable** `HOMEBREW_TAP` (for example `acme/homebrew-snagentic`), plus
    the `release` environment secret `HOMEBREW_TAP_TOKEN`. The token must be a
    fine-grained token with contents write access to the tap only.
