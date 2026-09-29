@@ -682,7 +682,7 @@ If a UI recipe behaves unexpectedly:
 ### 12.1 Technical prerequisites
 
 - Git repository with protected default branch;
-- Docker Compose or an approved Python 3.13 runtime;
+- Docker Compose or an approved Python 3.13+ runtime (3.14 recommended);
 - GitHub Actions or equivalent CI;
 - ServiceNow development instance and integration identity;
 - supported network path and trusted TLS certificates;

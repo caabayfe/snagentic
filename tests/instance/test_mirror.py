@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import Any
+
+import pytest
 
 from snagentic.instance.config import InstancePaths
 from snagentic.instance.mirror import (
@@ -63,6 +66,39 @@ def test_tune_large_repository_enables_supported_settings(tmp_path: Path) -> Non
 
     for key, value in LARGE_REPOSITORY_SETTINGS:
         assert _git(root, "config", "--local", "--get", key).strip() == value
+
+
+def test_tune_large_repository_leaves_fsmonitor_disabled(tmp_path: Path) -> None:
+    root = _repo(tmp_path)
+
+    tune_large_repository(root)
+
+    result = subprocess.run(
+        ["git", "config", "--local", "--get", "core.fsmonitor"],
+        cwd=root, capture_output=True, text=True, check=False,
+    )
+    assert result.returncode == 1
+
+
+def test_git_calls_bypass_a_configured_fsmonitor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = _repo(tmp_path)
+    _git(root, "config", "core.fsmonitor", "true")
+    seen: list[list[str]] = []
+    real_run = subprocess.run
+
+    def recording_run(argv: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        seen.append(list(argv))
+        return real_run(argv, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", recording_run)
+    (root / "instances/dev/metadata/a/record.yaml").write_text("x: 2\n")
+
+    assert worktree_status(root, ("instances/dev/metadata",)) == [
+        (" M", "instances/dev/metadata/a/record.yaml")
+    ]
+    assert seen and all(argv[1:3] == ["-c", "core.fsmonitor=false"] for argv in seen)
 
 
 def test_mirror_construction_does_not_mutate_git_configuration(tmp_path: Path) -> None:

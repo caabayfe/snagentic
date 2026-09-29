@@ -146,7 +146,7 @@ override and must use the same owner-only permissions. See `docs/copilot-cli.md`
 the exact format and precedence.
 
 Development and CI containers use the reviewed Python versions in
-`requirements/constraints.txt`. Regenerate that file from the supported Python 3.13 test
+`requirements/constraints.txt`. Regenerate that file from the supported Python 3.14 test
 container after reviewing dependency updates. The UI runner uses the committed
 `ui/package-lock.json` and `npm ci`.
 

@@ -2,9 +2,9 @@
 
 ## Supported environment
 
-- Python 3.13, as used by the project container image
+- Python 3.13 or newer; 3.14 is used by the project container image and native builds
 - Docker Compose for the supported CLI, validation, and documentation workflows
-- Node.js 20 or newer for direct execution of the Playwright runner
+- Node.js 22 or newer (24 LTS recommended) for direct execution of the Playwright runner
 - ServiceNow development instances accessible through supported Table and CI/CD APIs
 
 The latest default-branch revision is the supported pre-1.0 release line. Compatibility

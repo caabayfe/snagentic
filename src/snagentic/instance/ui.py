@@ -321,7 +321,7 @@ def node_executable(environ: dict[str, str] | None = None) -> str:
         return found
     raise ConfigurationError(
         "no Node.js runtime for UI recipes: install the native snagentic build, "
-        "install Node.js 20+, or set SNAGENTIC_NODE"
+        "install Node.js 22+ (24 LTS recommended), or set SNAGENTIC_NODE"
     )
 
 

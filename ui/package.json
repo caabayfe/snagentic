@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "description": "Playwright runner for ServiceNow operations that have no supported API",
-  "engines": { "node": ">=20" },
+  "engines": { "node": ">=22" },
   "scripts": {
     "test": "node --test ../tests/extension/*.test.mjs ../tests/ui/*.test.mjs"
   },
