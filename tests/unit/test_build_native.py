@@ -52,8 +52,9 @@ def test_archive_writes_checksum(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     (bundle / "_internal" / "data.txt").write_text("data")
     monkeypatch.setattr(sys, "platform", platform_name)
     archive = build.archive(bundle, tmp_path, "snagentic-0-test")  # type: ignore[attr-defined]
-    checksum = (tmp_path / f"{archive.name}.sha256").read_text().split()
-    assert checksum == [hashlib.sha256(archive.read_bytes()).hexdigest(), archive.name]
+    raw = (tmp_path / f"{archive.name}.sha256").read_bytes()
+    digest = hashlib.sha256(archive.read_bytes()).hexdigest()
+    assert raw == f"{digest}  {archive.name}\n".encode()
     if platform_name == "win32":
         with zipfile.ZipFile(archive) as handle:
             names = handle.namelist()
