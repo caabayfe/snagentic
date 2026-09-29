@@ -10,7 +10,6 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,6 +26,11 @@ MIRROR_AUTHOR = {
 MIRRORED_SUBDIRECTORIES = ("metadata", "update-sets")
 
 
+# fsmonitor can miss a write made just after the previous git call, so plan, status and
+# integrate would silently skip a user's edit. Every snagentic git call scans for real.
+EXACT_WORKTREE: tuple[str, ...] = ("-c", "core.fsmonitor=false")
+
+
 def git(
     root: Path,
     *args: str,
@@ -37,7 +41,7 @@ def git(
     merged = {**os.environ, **(env or {})}
     try:
         result = subprocess.run(  # noqa: S603 - fixed executable and argument vector
-            ["git", *args],  # noqa: S607 - git is intentionally resolved from PATH
+            ["git", *EXACT_WORKTREE, *args],  # noqa: S607 - git is resolved from PATH
             cwd=root,
             env=merged,
             capture_output=True,
@@ -57,7 +61,7 @@ def worktree_status(root: Path, prefixes: tuple[str, ...]) -> list[tuple[str, st
     """``(code, path)`` for changed, staged and untracked paths under ``prefixes``.
 
     Runs a whole-repository ``git status`` and filters here: a pathspec makes git skip the
-    untracked cache and fsmonitor, which costs ~40s on a mirror with ~700k files.
+    untracked cache, which is expensive on a mirror with ~700k files.
     """
 
     output = git(
@@ -71,15 +75,12 @@ def worktree_status(root: Path, prefixes: tuple[str, ...]) -> list[tuple[str, st
     ]
 
 
-LARGE_REPOSITORY_SETTINGS: tuple[tuple[str, str], ...] = (
-    ("core.untrackedCache", "true"),
-    *((("core.fsmonitor", "true"),) if sys.platform in {"darwin", "win32"} else ()),
-)
+LARGE_REPOSITORY_SETTINGS: tuple[tuple[str, str], ...] = (("core.untrackedCache", "true"),)
 
 
 def tune_large_repository(root: Path) -> None:
-    """Enable git's untracked cache (and the built-in fsmonitor where supported) unless the
-    repository already configures them; instance mirrors hold hundreds of thousands of files."""
+    """Enable git's untracked cache unless the repository already configures it; instance
+    mirrors hold hundreds of thousands of files."""
 
     for key, value in LARGE_REPOSITORY_SETTINGS:
         if git(root, "config", "--local", "--get", key, check=False).returncode == 1:
