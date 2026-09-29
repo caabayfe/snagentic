@@ -5,11 +5,20 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    ignore:
+      # pydantic pins an exact pydantic-core; it moves only with pydantic.
+      - dependency-name: pydantic-core
+    groups:
+      python-minor-and-patch:
+        update-types: [minor, patch]
   - package-ecosystem: npm
     directory: /ui
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      node-minor-and-patch:
+        update-types: [minor, patch]
   - package-ecosystem: docker
     directory: /
     schedule:
@@ -20,3 +29,7 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    groups:
+      # Keep codeql-action init/analyze and artifact upload/download on one major.
+      github-actions:
+        patterns: ["*"]
