@@ -42,7 +42,7 @@ mkdocs==1.6.1
 more-itertools==11.1.0
 msgpack==1.2.2
 mypy_extensions==1.1.0
-mypy==1.20.2
+mypy==2.3.1
 packageurl-python==0.17.6
 packaging==26.3
 paginate==0.5.7
