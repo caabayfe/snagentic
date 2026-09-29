@@ -1,6 +1,6 @@
 {
   "name": "snagentic-servicenow",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "ServiceNow expert guardrails for snagentic: architect and reviewer agents, ServiceNow best-practice skills, and a preToolUse gate that stops snagentic_instance_apply when a plan has unwaived blocking findings.",
   "author": { "name": "snagentic" },
   "license": "MIT",
