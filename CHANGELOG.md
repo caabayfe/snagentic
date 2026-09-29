@@ -22,6 +22,8 @@
 
 ### Fixed
 
+- Release `.sha256` files are written with LF line endings on every platform, so
+  `shasum -a 256 -c` verifies the Windows archive.
 - `instance plan` could miss local edits on macOS when Git's fsmonitor was enabled;
   snagentic now disables fsmonitor for its own Git calls.
 - CI containers run as the runner user so hardened containers can write the checkout.

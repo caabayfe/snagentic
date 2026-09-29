@@ -149,7 +149,8 @@ def archive(bundle: Path, output: Path, name: str) -> Path:
         with tarfile.open(path, "w:gz") as handle:
             handle.add(bundle, arcname="snagentic")
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    (output / f"{path.name}.sha256").write_text(f"{digest}  {path.name}\n", encoding="utf-8")
+    # Bytes, not text: Windows text mode would write CRLF and break `shasum -c`.
+    (output / f"{path.name}.sha256").write_bytes(f"{digest}  {path.name}\n".encode())
     return path
 
 
