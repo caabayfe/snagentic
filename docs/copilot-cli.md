@@ -1,19 +1,7 @@
 # Copilot CLI integration
 
 The project extension at `.github/extensions/snagentic/extension.mjs` exposes
-these repository-scoped tools:
-
-| Tool | Purpose | Writes |
-| --- | --- | --- |
-| `snagentic_inventory` | List allowlisted remote artifacts | No |
-| `snagentic_pull` | Refresh the normalized workspace and baseline | Local |
-| `snagentic_status` | Compare workspace and baseline | No |
-| `snagentic_diff` | Return changed artifact paths | No |
-| `snagentic_validate` | Validate configuration and report write eligibility | No |
-| `snagentic_push_plan` | Build the current local change plan | No |
-| `snagentic_push` | Preflight and apply a reviewed development change | Remote development |
-| `snagentic_diagnostics` | Collect bounded, redacted diagnostics | Local |
-| `snagentic_query` | Search the local artifact index | No |
+repository-scoped tools for the instance mirror workflow.
 
 ### Instance tools
 
@@ -214,40 +202,14 @@ Apply the same ownership and `0600` mode to
    records the last scan in the manifest; promotion to test/production uses the
    supported deployment process.
 
-## Safe change workflow (legacy engine)
-
-1. Validate the selected environment with `snagentic_validate`.
-2. Pull and review the normalized files under `servicenow/`.
-3. Make the intended edits.
-4. Inspect `snagentic_status` or `snagentic_diff`.
-5. Generate and review `snagentic_push_plan`.
-6. Invoke `snagentic_push` with an explicit environment and `confirm: true`.
-
-The push tool uses the CLI permission prompt, then loads the selected
-configuration and continues only when that exact profile declares
-`kind: development`. Missing environments, configuration errors, unapproved
-credential names, test profiles, and production profiles are denied. Push then
-performs a second `validate` call immediately before execution. The Python
-CLI must report `write_allowed: true`; otherwise the extension returns a denied
-result. The Python client independently enforces the same development-only
-policy.
-
-`snagentic_pull` replaces the generated workspace atomically, so preserve
-intentional local edits before pulling again.
-
 ## Generated and local-only paths
 
-- `servicenow/` is the deterministic, reviewable artifact workspace generated
-  by pull. Its normalized contents are intended for source control.
 - `instances/<name>/` holds the instance profile (no secrets), mirrored metadata,
   update sets, durable authored documentation under `documentation/`, and generated
   docs under `docs/`. Its contents are intended for source control.
 - `.snagentic/` is ignored local state: baselines, raw payloads, diagnostics,
   locks, synchronization state, mirror work trees, search indexes, UI evidence
   (screenshots and traces), and promotion manifests.
-- `config/snagentic.yaml` is local configuration and must contain environment
-  variable names rather than credential values.
-- `config/snagentic.example.yaml` is the safe template for repository use.
 
 Do not copy raw diagnostic or state data into tracked files without an explicit
 redaction review.
@@ -257,7 +219,7 @@ redaction review.
 The extension uses the current `@github/copilot-sdk/extension` APIs:
 `joinSession`, `requestedEnvironmentVariables`, and tool `skipPermission`.
 Older Copilot CLI versions may ignore environment requests or permission
-settings. In that case the extension should not be used for pushes; upgrade
+settings. In that case the extension should not be used for writes; upgrade
 Copilot CLI.
 
 The SDK is supplied by Copilot CLI's extension runtime. No npm dependency or

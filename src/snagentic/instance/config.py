@@ -406,33 +406,6 @@ class InstanceRegistry:
         )
         return paths.config_file
 
-    def import_environment(self, environment: EnvironmentConfig) -> Path | None:
-        """Create an instance profile from a legacy ``config/snagentic.yaml`` environment.
-
-        Existing profiles are never overwritten; ``None`` is returned for them.
-        """
-
-        paths = self.paths(environment.name)
-        if paths.config_file.exists():
-            return None
-        raw = {
-            "name": environment.name,
-            "url": str(environment.url),
-            "kind": environment.kind,
-            "auth": environment.auth.model_dump(exclude_none=True),
-            "verify_tls": environment.verify_tls,
-            "page_size": environment.page_size,
-        }
-        try:
-            InstanceConfig.model_validate(raw)
-        except ValueError as exc:
-            raise ConfigurationError(f"{environment.name}: {exc}") from exc
-        paths.workspace.mkdir(parents=True, exist_ok=True)
-        paths.config_file.write_text(
-            yaml.safe_dump(raw, sort_keys=False, allow_unicode=False), encoding="utf-8"
-        )
-        return paths.config_file
-
     def _default(self) -> str:
         names = self.names()
         if len(names) == 1:

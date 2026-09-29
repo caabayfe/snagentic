@@ -7,15 +7,13 @@
 1. ServiceNow remains authoritative for runtime execution and platform-generated
    metadata.
 2. Git is authoritative for reviewed development code and normalized configuration.
-3. The local `.snagentic/` directory holds disposable baselines, raw responses,
-   diagnostics, locks, and the search index.
+3. The local `.snagentic/` directory holds disposable raw responses, locks, mirror
+   work trees, search indexes, UI evidence, and promotion manifests.
 4. ServiceNow roles on the integration user, plus the local `kind` policy, bound what
-   the tool can change. The optional companion scoped app adds an in-platform
-   enforcement point for the legacy engine.
+   the tool can change.
 
-The filesystem is not a database backup. Artifact support is explicit and versioned.
-Every artifact type declares whether it is managed bidirectionally, handled by native
-ServiceNow source control, export-only, diagnostic-only, or excluded.
+The filesystem is not a database backup. Mirrored metadata is a reviewed development
+workspace and evidence source for agents.
 
 ## Environment flow
 
@@ -23,24 +21,11 @@ Development supports guarded two-way synchronization. Test and production reject
 writes from both the local client policy and ServiceNow roles. Promotion uses immutable
 application versions, update sets, or supported ServiceNow CI/CD APIs.
 
-## Reconciliation
-
-This section describes the legacy engine. A pull writes a complete staging tree, validates all path components, and atomically
-replaces the committed workspace. The latest successful pull is copied to a local
-baseline. Status compares that baseline to the current filesystem. Before a push, the
-tool also compares the remote revision and rejects stale or conflicting work.
-
-Incremental cursors improve normal operation, but periodic full reconciliation is
-required to find missed updates and deletions. The companion app supplies tombstones
-for records that no longer exist.
-
 ## Instance mirror
 
 `snagentic instance ...` (package `snagentic.instance`) is the primary engine. It
 mirrors whole ServiceNow instances into git so coding agents can read the design,
-see who is changing what, generate documentation, and prepare changes. The legacy
-companion-app engine (`pull`/`push` over `servicenow/`) remains available; see
-[Legacy engine](#legacy-companion-app-engine).
+see who is changing what, generate documentation, and prepare changes.
 
 ### Layout
 
@@ -269,26 +254,14 @@ These are covered by the in-memory fake in `tests/instance/`, not yet by a real 
 - Availability and roles for `sn_cicd` endpoints (`sn_cicd.sys_ci_automation`).
 - Playwright selectors for classic pages and the Next Experience shell per release.
 
-## Legacy companion-app engine
-
-The original engine (`pull`, `status`, `diff`, `push-plan`, `push` over
-`servicenow/`) reads and writes through the companion scoped app and per-type
-exporters in `config/artifact-types.yaml`. Its read path is deprecated in favour of the
-Table API mirror above; the companion app's write, preflight and policy endpoints stay
-available for instances that require an in-platform enforcement point (domain and role
-checks). New work should use `snagentic instance ...`.
-
 ## Domain separation
 
-Every artifact carries explicit domain and scope identity. Global records live under
-`servicenow/global/`; domain records live under
-`servicenow/domains/<domain-stable-id>/`. Scoped records inside a domain add a
-`scopes/<scope-name>/` segment. Ambiguous domains, path traversal, implicit global
-fallback, and cross-domain moves are rejected.
+Every mirrored metadata record carries explicit domain and scope identity in
+`record.yaml` and its path under `instances/<name>/metadata/`. Ambiguous domains,
+path traversal, implicit global fallback, and cross-domain moves are rejected.
 
 ## Data safety
 
 The repository excludes credentials, encrypted values, tokens, journal fields,
-business data, attachments, and unbounded logs. Diagnostics are queried through
-server-side limits and redaction, written to `.snagentic/diagnostics/`, and expired by
-TTL. A troubleshooting bundle must be explicitly sanitized before sharing.
+business data, attachments, and unbounded logs. A troubleshooting bundle must be
+explicitly sanitized before sharing.

@@ -1,40 +1,9 @@
 from snagentic.artifacts import (
-    DEFAULT_ARTIFACT_REGISTRY,
-    ArtifactCapability,
     canonical_json,
     content_hash,
     normalize_line_endings,
     normalize_mapping,
 )
-
-
-def test_registry_contains_required_allowlist() -> None:
-    expected = {
-        "script_include",
-        "business_rule",
-        "acl",
-        "dictionary",
-        "system_property",
-        "client_script",
-        "ui_action",
-        "ui_policy",
-        "scripted_rest_api",
-        "scripted_rest_resource",
-        "scheduled_job",
-        "notification",
-        "flow",
-        "subflow",
-        "update_set",
-        "app_version",
-        "deployment_history",
-    }
-    assert {definition.artifact_type for definition in DEFAULT_ARTIFACT_REGISTRY} == expected
-    properties = DEFAULT_ARTIFACT_REGISTRY.require("system_property")
-    assert properties.capability == ArtifactCapability.EXPORT_ONLY
-    assert "value" in properties.excluded_fields
-    assert DEFAULT_ARTIFACT_REGISTRY.require("script_include").natural_key_fields == (
-        "api_name",
-    )
 
 
 def test_normalization_is_deterministic_without_destroying_list_order() -> None:

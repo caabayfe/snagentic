@@ -39,9 +39,6 @@ def add_instance_parser(subparsers: Any) -> None:
     commands.add_parser(
         "profile", help="non-secret profile summary used by the Copilot extension"
     )
-    migrate = commands.add_parser("migrate", help="import environments from config/snagentic.yaml")
-    migrate.add_argument("--config", type=Path, default=Path("config/snagentic.yaml"))
-
     fetch = commands.add_parser("fetch", help="refresh the servicenow-remote/<name> mirror")
     fetch.add_argument("--full", action="store_true", help="full reconcile instead of incremental")
     commands.add_parser("integrate", help="merge the mirror branch into the current branch")
@@ -218,9 +215,6 @@ def run_instance(args: argparse.Namespace, root: Path) -> Any:
             instances.append({"name": name, "url": str(config.url), "kind": config.kind,
                               "writable": config.writable, "mirror_branch": config.mirror_branch})
         return {"instances": instances}
-    if command == "migrate":
-        return _migrate(registry, args.config, root)
-
     config = registry.load(args.instance_name)
     paths = registry.paths(config.name)
     if command == "profile":
@@ -431,19 +425,6 @@ def _client(config: InstanceConfig) -> Any:
     from snagentic.instance.tableapi import TableApiClient
 
     return TableApiClient(config.environment(), transport=TRANSPORT)
-
-
-def _migrate(registry: InstanceRegistry, config_path: Path, root: Path) -> dict[str, Any]:
-    from snagentic.config import load_config
-
-    legacy = load_config(config_path)
-    created: list[str] = []
-    skipped: list[str] = []
-    for environment in legacy.environments.values():
-        path = registry.import_environment(environment)
-        (created if path else skipped).append(environment.name)
-    return {"created": created, "skipped_existing": skipped,
-            "config": _relative(config_path.resolve(), root)}
 
 
 def _status(paths: InstancePaths, config: InstanceConfig) -> dict[str, Any]:

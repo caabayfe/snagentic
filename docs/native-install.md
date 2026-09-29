@@ -106,14 +106,11 @@ For an instance profile, the keychain service is `snagentic`, and the account is
 `dev.service-now.com/SNAGENTIC_DEV_PASSWORD`. Because the host is part of the account
 name, a profile that is pointed at a different host cannot read those credentials.
 
-Run `snagentic auth logout -i dev` to remove the stored values. Legacy
-`config/snagentic.yaml` profiles use `snagentic --config config/snagentic.yaml
---environment dev auth login`.
+Run `snagentic auth logout -i dev` to remove the stored values.
 
 ## Where credentials come from
 
-`auth.store` in `instance.yaml` (or in a legacy profile) controls where credentials come
-from:
+`auth.store` in `instance.yaml` controls where credentials come from:
 
 | `auth.store` | Behaviour |
 | --- | --- |

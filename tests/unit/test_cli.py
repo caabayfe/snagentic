@@ -1,42 +1,43 @@
-import argparse
+import json
 from pathlib import Path
 
-from snagentic.cli.main import run
+import pytest
+
+from snagentic.cli.main import main
 
 
-def test_init_creates_non_secret_template(tmp_path: Path, monkeypatch: object) -> None:
-    import pytest
-
-    assert isinstance(monkeypatch, pytest.MonkeyPatch)
-    monkeypatch.chdir(tmp_path)
-    args = argparse.Namespace(
-        command="init",
-        config=Path("config/snagentic.yaml"),
-        auth="bearer",
-    )
-    result = run(args)
-    content = (tmp_path / "config/snagentic.yaml").read_text(encoding="utf-8")
-    assert result["created"] is True
-    assert "SNAGENTIC_DEV_TOKEN" in content
-    assert "token:" not in content
-
-
-def test_init_can_create_basic_auth_template(
-    tmp_path: Path, monkeypatch: object
+def test_doctor_without_local_runs_local_report(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    import pytest
-
-    assert isinstance(monkeypatch, pytest.MonkeyPatch)
     monkeypatch.chdir(tmp_path)
-    args = argparse.Namespace(
-        command="init",
-        config=Path("config/snagentic.yaml"),
-        auth="basic",
-    )
-    result = run(args)
-    content = (tmp_path / "config/snagentic.yaml").read_text(encoding="utf-8")
-    assert result["created"] is True
-    assert "mode: basic" in content
-    assert "SNAGENTIC_DEV_USERNAME" in content
-    assert "SNAGENTIC_DEV_PASSWORD" in content
-    assert "service-account-name" not in content
+    main(["--json", "doctor"])
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert "credential_store" in payload["result"]
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "init",
+        "inventory",
+        "pull",
+        "status",
+        "diff",
+        "validate",
+        "-".join(("push", "plan")),
+        "push",
+        "diagnostics",
+        "query",
+        "-".join(("promotion", "manifest")),
+        "-".join(("change", "report")),
+    ],
+)
+def test_legacy_subcommands_are_rejected(
+    command: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(SystemExit) as exc:
+        main(["--json", command])
+
+    assert exc.value.code == 2
+    assert "invalid choice" in capsys.readouterr().err

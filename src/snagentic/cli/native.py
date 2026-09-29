@@ -1,4 +1,4 @@
-"""Native-install commands: ``auth``, ``copilot``, ``ui``, ``profile`` and ``doctor --local``.
+"""Native-install commands: ``auth``, ``copilot``, ``ui`` and ``doctor``.
 
 None of these commands ever print a credential value.
 """
@@ -76,10 +76,6 @@ def add_native_parsers(subparsers: Any) -> None:
     ui_commands.add_parser("install", help="install the runner dependencies and Chromium")
     ui_commands.add_parser("status", help="report the UI runner, Node.js and browser status")
 
-    subparsers.add_parser(
-        "profile", help="non-secret profile summary used by the Copilot extension"
-    )
-
 
 def run_native(args: argparse.Namespace, root: Path) -> Any:
     if args.command == "auth":
@@ -93,16 +89,6 @@ def run_native(args: argparse.Namespace, root: Path) -> Any:
         return copilot_uninstall(args.target)
     if args.command == "ui":
         return ui_install(root) if args.ui_runtime_command == "install" else ui_status(root)
-    if args.command == "profile":
-        from snagentic.config import load_config
-
-        environment = load_config(args.config).environment(args.environment)
-        return {
-            "environment": environment.name,
-            "kind": environment.kind,
-            "credential_names": environment.auth.credential_names(),
-            "store": credentials.effective_store(environment.auth.store),
-        }
     raise AssertionError(f"unhandled command: {args.command}")
 
 
@@ -120,21 +106,14 @@ class CredentialTarget:
 def credential_target(args: argparse.Namespace, root: Path) -> CredentialTarget:
     from snagentic.instance.config import InstanceRegistry
 
-    registry = InstanceRegistry(root)
-    instance = getattr(args, "auth_instance", None)
-    if instance or (not args.environment and registry.names()):
-        config = registry.load(instance)
-        names = config.auth.credential_names() + [
-            name for name in (config.ui.username_env, config.ui.password_env) if name
-        ]
-        target = CredentialTarget(f"instance {config.name}", str(config.url),
-                                  config.auth.store, list(dict.fromkeys(names)))
-    else:
-        from snagentic.config import load_config
-
-        environment = load_config(args.config).environment(args.environment)
-        target = CredentialTarget(f"environment {environment.name}", str(environment.url),
-                                  environment.auth.store, environment.auth.credential_names())
+    config = InstanceRegistry(root).load(getattr(args, "auth_instance", None))
+    names = config.auth.credential_names() + [
+        name for name in (config.ui.username_env, config.ui.password_env) if name
+    ]
+    target = CredentialTarget(
+        f"instance {config.name}", str(config.url), config.auth.store,
+        list(dict.fromkeys(names)),
+    )
     selected: list[str] = getattr(args, "credential_names", []) or []
     unknown = sorted(set(selected) - set(target.names))
     if unknown:

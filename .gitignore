@@ -19,7 +19,6 @@ ui/node_modules/
 .DS_Store
 
 # ServiceNow instance data (mirrors, metadata, documentation) lives in a separate
-# repository. This repository contains only the snagentic application code.
+# repository; this repository contains only snagentic application code.
 instances/
-servicenow/*
-!servicenow/app/
+servicenow/

@@ -104,8 +104,7 @@ The product is intended to improve:
 - CI/CD API operations on development instances;
 - dry-run-first UI recipes for API gaps;
 - capability, process, user-guide, and technical-reference documentation;
-- content-free promotion manifests;
-- legacy normalized artifact synchronization under `servicenow/`.
+- content-free promotion manifests.
 
 ### 4.2 Out of scope
 

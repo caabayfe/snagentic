@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from pathlib import Path
 from typing import Literal
 
-import yaml
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
 
 from snagentic.credentials import CredentialStore, missing_message, resolve_secret
@@ -58,55 +56,6 @@ class EnvironmentConfig(BaseModel):
     @property
     def writable(self) -> bool:
         return self.kind == "development"
-
-
-class ProjectConfig(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    default_environment: str = "dev"
-    environments: dict[str, EnvironmentConfig]
-    artifact_policy: Path = Path("config/artifact-types.yaml")
-    redaction_policy: Path = Path("config/redaction-policy.yaml")
-    workspace: Path = Path("servicenow")
-    state_directory: Path = Path(".snagentic")
-
-    @model_validator(mode="after")
-    def validate_default(self) -> ProjectConfig:
-        if self.default_environment not in self.environments:
-            raise ValueError("default_environment must reference a configured environment")
-        for field_name, path in (
-            ("workspace", self.workspace),
-            ("state_directory", self.state_directory),
-        ):
-            if path.is_absolute() or not path.parts or ".." in path.parts:
-                raise ValueError(
-                    f"{field_name} must be a repository-relative path without traversal"
-                )
-        if self.workspace == self.state_directory:
-            raise ValueError("workspace and state_directory must be different paths")
-        return self
-
-    def environment(self, name: str | None) -> EnvironmentConfig:
-        selected = name or self.default_environment
-        try:
-            return self.environments[selected]
-        except KeyError as exc:
-            raise ConfigurationError(f"unknown environment: {selected}") from exc
-
-
-def load_config(path: Path) -> ProjectConfig:
-    try:
-        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except FileNotFoundError as exc:
-        raise ConfigurationError(f"configuration not found: {path}") from exc
-    except yaml.YAMLError as exc:
-        raise ConfigurationError(f"invalid YAML in {path}: {exc}") from exc
-    if not isinstance(raw, dict):
-        raise ConfigurationError(f"configuration must be a mapping: {path}")
-    try:
-        return ProjectConfig.model_validate(raw)
-    except ValueError as exc:
-        raise ConfigurationError(str(exc)) from exc
 
 
 def resolve_credentials(

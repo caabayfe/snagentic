@@ -86,18 +86,6 @@ def test_ui_recipes_fall_back_to_bundled_catalog(harness: Harness) -> None:
     assert {recipe["name"] for recipe in runner.list_recipes()} >= {"login-check"}
 
 
-def test_migrate_imports_legacy_environments(tmp_path: Path) -> None:
-    from snagentic.config import load_config
-
-    legacy = load_config(REPOSITORY / "config" / "snagentic.example.yaml")
-    registry = InstanceRegistry(tmp_path)
-    created = [registry.import_environment(env) for env in legacy.environments.values()]
-    assert all(created)
-    assert registry.names() == ["dev", "prod", "test"]
-    assert registry.load("prod").kind == "production"
-    assert registry.import_environment(legacy.environments["dev"]) is None
-
-
 def test_example_instance_profile_is_valid() -> None:
     import yaml
 

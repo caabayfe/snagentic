@@ -14,10 +14,8 @@ import {
   EXTENSION_PROTOCOL,
   RUNTIME_ENVIRONMENT_VARIABLES,
   applyRuntimeMarker,
-  buildCliLauncher,
-  buildInspectionLauncher,
+  buildLauncherForArgv,
   findOnPath,
-  inspectConfigProfile,
   requestedEnvironmentVariables,
   resolveWorkspaceRoot,
   selectRuntime,
@@ -161,57 +159,21 @@ test("native mode requests no credential variables from Copilot", () => {
 
 test("native launchers invoke the executable directly without Docker or Python", () => {
   const source = { PATH: "/usr/bin", HOME: "/home/u", SNAGENTIC_EXECUTABLE: NATIVE };
-  const launcher = buildCliLauncher("status", {}, source);
+  const launcher = buildLauncherForArgv(["--json", "instance", "-i", "dev", "status"], source);
   assert.equal(launcher.mode, "native");
   assert.equal(launcher.executable, NATIVE);
   assert.ok(!launcher.argv.includes("compose"));
   assert.ok(!launcher.argv.includes("-m"));
   assert.ok(launcher.argv.includes("status"));
 
-  const inspection = buildInspectionLauncher(
-    { hostPath: "/repo/config/snagentic.yaml" },
-    "dev",
-    source,
-  );
-  assert.deepEqual(inspection.argv, [
-    "--json", "--config", "/repo/config/snagentic.yaml", "--environment", "dev", "profile",
-  ]);
   assert.deepEqual(buildInstanceInspectionLauncher("acme", source).argv, [
     "--json", "instance", "-i", "acme", "profile",
   ]);
 });
 
-test("native profile results nested under result are parsed", async () => {
+test("native instance profile results nested under result are parsed", async () => {
   const source = { PATH: "/usr/bin", SNAGENTIC_EXECUTABLE: NATIVE };
   const calls = [];
-  const profile = await withTempDir("snag-cfg-", async (cwd) => {
-    await mkdir(path.join(cwd, "config"));
-    await writeFile(path.join(cwd, "config", "snagentic.yaml"), "environments: {}\n");
-    return inspectConfigProfile({ config: "config/snagentic.yaml", environment: "dev" }, {
-      cwd,
-      sourceEnvironment: source,
-      spawnImpl: fakeSpawn(
-        [{
-          stdout: {
-            ok: true,
-            result: {
-              environment: "dev",
-              kind: "development",
-              credential_names: ["SNAGENTIC_DEV_TOKEN"],
-            },
-          },
-        }],
-        calls,
-      ),
-    });
-  });
-  assert.equal(calls[0].executable, NATIVE);
-  assert.deepEqual(profile, {
-    environment: "dev",
-    kind: "development",
-    credentialNames: ["SNAGENTIC_DEV_TOKEN"],
-  });
-
   const instance = await inspectInstance("acme", {
     sourceEnvironment: source,
     spawnImpl: fakeSpawn(
@@ -226,9 +188,10 @@ test("native profile results nested under result are parsed", async () => {
           },
         },
       }],
-      [],
+      calls,
     ),
   });
+  assert.equal(calls[0].executable, NATIVE);
   assert.equal(instance.instance, "acme");
   assert.equal(instance.kind, "development");
 });

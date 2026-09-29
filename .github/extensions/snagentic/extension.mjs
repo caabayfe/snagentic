@@ -6,7 +6,6 @@ import {
   EXTENSION_PROTOCOL,
   applyRuntimeFile,
   applyRuntimeMarker,
-  executeCommand,
   joinSessionWithPermissionFallback,
   requestedEnvironmentVariables,
   selectRuntime,
@@ -39,43 +38,6 @@ try {
   runtimeMode = selectRuntime(process.env).mode;
 } catch (error) {
   startupWarnings.push(error instanceof Error ? error.message : String(error));
-}
-
-const commonProperties = {
-  config: {
-    type: "string",
-    minLength: 1,
-    maxLength: 240,
-    pattern: "^[A-Za-z0-9._/-]+$",
-    description:
-      "Repository-relative configuration path. Parent traversal and absolute paths are rejected.",
-  },
-  environment: {
-    type: "string",
-    minLength: 1,
-    maxLength: 64,
-    pattern: "^[A-Za-z0-9][A-Za-z0-9._-]*$",
-    description: "Configured ServiceNow environment name.",
-  },
-};
-
-function schema(properties = {}, required = []) {
-  return {
-    type: "object",
-    additionalProperties: false,
-    properties: { ...commonProperties, ...properties },
-    required,
-  };
-}
-
-function tool(name, command, description, parameters, { skipPermission = true } = {}) {
-  return {
-    name,
-    description,
-    parameters,
-    skipPermission,
-    handler: (args) => executeCommand(command, args),
-  };
 }
 
 const instanceProperty = {
@@ -308,118 +270,7 @@ const extensionOptions = {
     runtimeMode,
     usesEnvironmentCredentials(runtimeMode) ? discoverInstanceCredentialNames() : [],
   ),
-  tools: [
-    ...instanceTools,
-    tool(
-      "snagentic_inventory",
-      "inventory",
-      "List allowlisted ServiceNow development artifacts through the snagentic JSON CLI.",
-      schema(),
-    ),
-    tool(
-      "snagentic_pull",
-      "pull",
-      "Atomically refresh the generated ServiceNow workspace and local baseline from the selected environment.",
-      schema(),
-      { skipPermission: false },
-    ),
-    tool(
-      "snagentic_status",
-      "status",
-      "Compare the editable ServiceNow workspace with the latest local pull baseline.",
-      schema(),
-    ),
-    tool(
-      "snagentic_diff",
-      "diff",
-      "Return added, modified, and deleted ServiceNow artifact paths using the snagentic CLI.",
-      schema(),
-    ),
-    tool(
-      "snagentic_validate",
-      "validate",
-      "Validate snagentic configuration and report whether the selected environment is writable.",
-      schema(),
-    ),
-    tool(
-      "snagentic_push_plan",
-      "push-plan",
-      "Build a deterministic local change plan without applying it to ServiceNow.",
-      schema(),
-    ),
-    tool(
-      "snagentic_push",
-      "push",
-      "After explicit confirmation, preflight and apply a reviewed change plan only to a writable development environment.",
-      schema(
-        {
-          confirm: {
-            type: "boolean",
-            const: true,
-            description: "Must be true after the user has reviewed the push plan.",
-          },
-        },
-        ["environment", "confirm"],
-      ),
-      { skipPermission: false },
-    ),
-    tool(
-      "snagentic_diagnostics",
-      "diagnostics",
-      "Collect bounded, redacted ServiceNow diagnostics into the local-only snagentic state directory.",
-      schema({
-        minutes: {
-          type: "integer",
-          minimum: 1,
-          maximum: 1440,
-          default: 60,
-          description: "Lookback window in minutes.",
-        },
-        limit: {
-          type: "integer",
-          minimum: 1,
-          maximum: 5000,
-          default: 500,
-          description: "Maximum number of diagnostic records.",
-        },
-        domain: {
-          type: "string",
-          minLength: 1,
-          maxLength: 128,
-          pattern: "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
-          description: "Optional configured domain identifier.",
-        },
-      }),
-    ),
-    tool(
-      "snagentic_query",
-      "query",
-      "Search the local snagentic artifact index with optional domain and artifact-type filters.",
-      schema(
-        {
-          text: {
-            type: "string",
-            minLength: 1,
-            maxLength: 1000,
-            description: "Local search text.",
-          },
-          domain: {
-            type: "string",
-            minLength: 1,
-            maxLength: 128,
-            pattern: "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
-          },
-          artifactType: {
-            type: "string",
-            minLength: 1,
-            maxLength: 128,
-            pattern: "^[A-Za-z0-9][A-Za-z0-9._:/-]*$",
-          },
-        },
-        ["text"],
-      ),
-    ),
-  ],
+  tools: instanceTools,
 };
 
 const { session, environmentAccessDenied } = await joinSessionWithPermissionFallback(
