@@ -1,5 +1,13 @@
+# CI sets SNAGENTIC_UID/SNAGENTIC_GID to the runner user so containers can write
+# caches and reports into the bind-mounted checkout without extra capabilities.
+x-workspace-user: &workspace-user
+  user: "${SNAGENTIC_UID:-0}:${SNAGENTIC_GID:-0}"
+  environment:
+    HOME: ${SNAGENTIC_HOME:-/root}
+
 services:
   cli:
+    <<: *workspace-user
     build:
       context: .
       target: development
@@ -11,6 +19,7 @@ services:
     volumes:
       - .:/workspace
   test:
+    <<: *workspace-user
     build:
       context: .
       target: development
@@ -24,6 +33,7 @@ services:
     volumes:
       - .:/workspace
   lint:
+    <<: *workspace-user
     build:
       context: .
       target: development

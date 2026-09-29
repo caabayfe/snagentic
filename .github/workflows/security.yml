@@ -15,6 +15,13 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Run containers as the runner user
+        run: |
+          {
+            echo "SNAGENTIC_UID=$(id -u)"
+            echo "SNAGENTIC_GID=$(id -g)"
+            echo "SNAGENTIC_HOME=/tmp"
+          } >> "$GITHUB_ENV"
       - name: Build audit container
         run: docker compose build test
       - name: Audit Python dependencies

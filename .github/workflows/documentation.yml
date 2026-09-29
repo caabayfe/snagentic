@@ -23,6 +23,13 @@ jobs:
           else
             git diff-tree --check --no-commit-id -r HEAD
           fi
+      - name: Run containers as the runner user
+        run: |
+          {
+            echo "SNAGENTIC_UID=$(id -u)"
+            echo "SNAGENTIC_GID=$(id -g)"
+            echo "SNAGENTIC_HOME=/tmp"
+          } >> "$GITHUB_ENV"
       - name: Build documentation container
         run: docker compose build test
       - name: Test documentation
