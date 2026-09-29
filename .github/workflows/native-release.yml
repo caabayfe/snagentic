@@ -28,7 +28,7 @@ env:
 jobs:
   test:
     name: Native tests (macOS)
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -62,11 +62,11 @@ jobs:
       matrix:
         include:
           - target: macos-arm64
-            runner: macos-14
+            runner: macos-15
           - target: macos-x64
-            runner: macos-13
+            runner: macos-15-intel
           - target: windows-x64
-            runner: windows-2022
+            runner: windows-2025
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     env:
