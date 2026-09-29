@@ -1,0 +1,10 @@
+{
+  "roles": [
+    {"name": "x_snagentic_source.export", "purpose": "Inventory and export allowlisted configuration artifacts"},
+    {"name": "x_snagentic_source.diagnostics", "purpose": "Read bounded and redacted diagnostics"},
+    {"name": "x_snagentic_source.validate", "purpose": "Run non-mutating change-bundle preflight"},
+    {"name": "x_snagentic_source.dev_import", "purpose": "Apply validated bundles on development instances only"}
+  ],
+  "contains": [],
+  "generated_metadata": false
+}

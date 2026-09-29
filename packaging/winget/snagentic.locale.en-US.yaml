@@ -1,0 +1,13 @@
+PackageIdentifier: {{PUBLISHER}}.snagentic
+PackageVersion: {{VERSION}}
+PackageLocale: en-US
+Publisher: {{PUBLISHER}}
+PackageName: snagentic
+License: MIT
+ShortDescription: ServiceNow metadata tooling and GitHub Copilot CLI extension.
+ReleaseNotesUrl: https://github.com/{{OWNER}}/{{REPO}}/releases/tag/v{{VERSION}}
+InstallationNotes: |-
+  Run `snagentic copilot install`, `snagentic auth login -i <instance>` and
+  `snagentic ui install` to finish setup.
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

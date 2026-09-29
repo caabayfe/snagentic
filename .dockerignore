@@ -1,0 +1,17 @@
+.git
+.github
+!.github/extensions/snagentic
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.snagentic
+.venv
+config/snagentic.yaml
+dist
+htmlcov
+instances
+servicenow
+ui/node_modules
+**/__pycache__
+**/*.pyc
+**/.DS_Store

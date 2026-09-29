@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "correlation_id": "fixture-contexts-001",
+  "data": {
+    "items": [
+      {
+        "domain": {
+          "sys_id": "dddddddddddddddddddddddddddddddd",
+          "name": "Fictional EMEA",
+          "path": "/Fictional/EMEA/"
+        },
+        "application_scope": {
+          "sys_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "name": "Fictional Knowledge Tools",
+          "scope": "x_fictional_kb"
+        }
+      }
+    ],
+    "next_cursor": null
+  },
+  "meta": {
+    "limit": 100
+  }
+}

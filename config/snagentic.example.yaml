@@ -1,0 +1,24 @@
+default_environment: dev
+environments:
+  dev:
+    name: dev
+    url: https://your-development-instance.service-now.com/
+    kind: development
+    auth:
+      mode: bearer
+      token_env: SNAGENTIC_DEV_TOKEN
+  test:
+    name: test
+    url: https://your-test-instance.service-now.com/
+    kind: test
+    auth:
+      mode: bearer
+      token_env: SNAGENTIC_TEST_TOKEN
+  prod:
+    name: prod
+    url: https://your-production-instance.service-now.com/
+    kind: production
+    auth:
+      mode: bearer
+      token_env: SNAGENTIC_PROD_TOKEN
+

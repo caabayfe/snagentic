@@ -1,0 +1,53 @@
+name: Documentation
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Check patch whitespace
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            git fetch --no-tags --depth=1 origin "$BASE_SHA"
+            git diff --check "$BASE_SHA" HEAD
+          else
+            git diff-tree --check --no-commit-id -r HEAD
+          fi
+      - name: Build documentation container
+        run: docker compose build test
+      - name: Test documentation
+        run: docker compose run --rm -T test pytest -q tests/instance/test_documentation_source.py tests/instance/test_docs_index.py
+      - name: Check configured documentation sites
+        shell: bash
+        run: |
+          set -euo pipefail
+          found=false
+          for directory in instances/*/documentation; do
+            [ -d "$directory" ] || continue
+            first_source="$(find "$directory" -type f \( -name '*.md' -o -name '*.yaml' \) -print -quit)"
+            [ -n "$first_source" ] || continue
+            found=true
+            instance="$(basename "$(dirname "$directory")")"
+            docker compose run --rm -T cli instance -i "$instance" docs check --strict
+          done
+          if [ "$found" = false ]; then
+            echo "No curated instance documentation manifests found; schema and renderer tests passed."
+          fi
+      - name: Upload generated sites
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: servicenow-documentation-sites
+          path: .snagentic/*/site/
+          if-no-files-found: ignore
+          retention-days: 14

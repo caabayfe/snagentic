@@ -1,0 +1,260 @@
+name: Native release
+
+# Builds the Docker-free snagentic application bundle (CLI + Copilot extension + UI runner
+# + private Node.js) for macOS and Windows, smoke-tests the installed artifact outside the
+# checkout, and publishes signed archives on version tags.
+
+on:
+  pull_request:
+    paths:
+      - "src/**"
+      - "ui/**"
+      - ".github/extensions/**"
+      - "packaging/**"
+      - "pyproject.toml"
+      - "requirements/**"
+      - ".github/workflows/native-release.yml"
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "20.20.2"
+  PYTHON_VERSION: "3.13"
+
+jobs:
+  test:
+    name: Native tests (macOS)
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install
+        run: python -m pip install -c requirements/constraints.txt -e ".[dev]"
+      - name: Lint and type-check
+        run: |
+          ruff check .
+          mypy src
+          mypy --platform win32 src
+          mypy --platform linux src
+      - name: Python tests without Docker
+        run: pytest --cov=snagentic --cov-fail-under=88
+      - name: Extension and UI runner tests
+        working-directory: ui
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+
+  build:
+    name: Bundle ${{ matrix.target }}
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: macos-arm64
+            runner: macos-14
+          - target: macos-x64
+            runner: macos-13
+          - target: windows-x64
+            runner: windows-2022
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    env:
+      RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      HAS_MACOS_SIGNING: ${{ secrets.MACOS_CERTIFICATE != '' && secrets.MACOS_SIGNING_IDENTITY != '' }}
+      HAS_WINDOWS_SIGNING: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install build dependencies
+        run: python -m pip install -c requirements/constraints.txt ".[native]"
+      - name: Build bundle
+        run: python packaging/build_native.py --output dist/native
+      - name: Smoke-test the bundle outside the checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = "Windows" ]; then exe="$PWD/dist/native/snagentic/snagentic.exe"; else exe="$PWD/dist/native/snagentic/snagentic"; fi
+          work="$(mktemp -d)"
+          cd "$work"
+          # Python, Node and Docker must not be needed by the installed bundle.
+          git_dir="$(dirname "$(command -v git)")"
+          export PATH="/usr/bin:/bin:$git_dir"
+          "$exe" --version
+          "$exe" --json doctor --local | tee doctor.json
+          grep -q '"native": true' doctor.json
+          grep -q '"playwright": "' doctor.json
+          "$exe" --json copilot install --target "$work/extensions"
+          "$exe" --json copilot status --target "$work/extensions" | grep -q '"current": true'
+          "$exe" --json copilot uninstall --target "$work/extensions"
+          git init -q
+          "$exe" --json instance add ci-smoke --url https://ci-smoke.example.service-now.com --kind development --credential-store keychain
+          "$exe" --json instance -i ci-smoke profile | grep -q '"store": "keychain"'
+      - name: Real OS credential store round trip
+        if: runner.os != 'Linux'
+        shell: bash
+        env:
+          SNAGENTIC_CISMOKE_USERNAME: ci-user
+          SNAGENTIC_CISMOKE_PASSWORD: ci-dummy-not-a-secret
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = "Windows" ]; then exe="$PWD/dist/native/snagentic/snagentic.exe"; else exe="$PWD/dist/native/snagentic/snagentic"; fi
+          work="$(mktemp -d)"; cd "$work"; git init -q
+          "$exe" --json instance add cismoke --url https://ci-smoke.example.service-now.com --kind development --credential-store keychain
+          "$exe" --json auth login -i cismoke --from-env
+          "$exe" --json auth status -i cismoke | tee status.json
+          ! grep -q "ci-dummy-not-a-secret" status.json
+          "$exe" --json auth logout -i cismoke
+      - name: Install Chromium and launch the UI runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = "Windows" ]; then exe="$PWD/dist/native/snagentic/snagentic.exe"; else exe="$PWD/dist/native/snagentic/snagentic"; fi
+          "$exe" --json ui install
+          "$exe" --json ui status | grep -q '"ready": true'
+      - name: Refuse to publish unsigned release artifacts
+        if: env.RELEASE == 'true'
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "macOS" ] && [ "$HAS_MACOS_SIGNING" != "true" ]; then
+            echo "::error::macOS signing secrets are not configured for the release environment"; exit 1
+          fi
+          if [ "$RUNNER_OS" = "Windows" ] && [ "$HAS_WINDOWS_SIGNING" != "true" ]; then
+            echo "::error::Windows signing secrets are not configured for the release environment"; exit 1
+          fi
+      - name: Import macOS signing certificate
+        if: runner.os == 'macOS' && env.RELEASE == 'true'
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password="$(uuidgen)"
+          echo "$MACOS_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security list-keychain -d user -s "$keychain"
+          rm -f "$RUNNER_TEMP/cert.p12"
+      - name: Sign and notarize (macOS)
+        if: runner.os == 'macOS' && env.RELEASE == 'true'
+        env:
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          bundle=dist/native/snagentic
+          find "$bundle" -type f \( -perm -u+x -o -name "*.dylib" -o -name "*.so" -o -name "*.node" \) -print0 |
+            xargs -0 codesign --force --timestamp --options runtime --sign "$MACOS_SIGNING_IDENTITY"
+          ditto -c -k --keepParent "$bundle" "$RUNNER_TEMP/notarize.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
+      - name: Authenticode sign (Windows)
+        if: runner.os == 'Windows' && env.RELEASE == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "cert.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Select-Object -Last 1
+          Get-ChildItem dist/native/snagentic -Recurse -Include *.exe,*.dll,*.pyd,*.node |
+            ForEach-Object { & $signtool.FullName sign /f $pfx /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $_.FullName }
+          Remove-Item $pfx
+      - name: Archive signed bundle
+        if: env.RELEASE == 'true'
+        shell: bash
+        run: |
+          rm -f dist/native/*.tar.gz dist/native/*.zip dist/native/*.sha256
+          python - <<'PY'
+          import sys
+          from pathlib import Path
+          sys.path.insert(0, "packaging")
+          import build_native
+          out = Path("dist/native")
+          name = f"snagentic-{build_native.version()}-{build_native.target_name()}"
+          print(build_native.archive(out / "snagentic", out, name))
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: snagentic-${{ matrix.target }}
+          path: |
+            dist/native/*.tar.gz
+            dist/native/*.zip
+            dist/native/*.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat artifacts/*.sha256 > artifacts/SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" artifacts/* --repo "$GITHUB_REPOSITORY" \
+            --title "snagentic $GITHUB_REF_NAME" --generate-notes
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: source
+          sparse-checkout: |
+            packaging/homebrew
+            src/snagentic/__init__.py
+      - name: Render Homebrew cask
+        run: |
+          python3 source/packaging/homebrew/render_cask.py --sums artifacts/SHA256SUMS \
+            --version "${GITHUB_REF_NAME#v}" --repository "$GITHUB_REPOSITORY" \
+            --output cask/snagentic.rb
+          gh release upload "$GITHUB_REF_NAME" cask/snagentic.rb --repo "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      # Publish to the tap only when both are configured: the repository variable
+      # HOMEBREW_TAP (OWNER/homebrew-snagentic) and the release-environment secret
+      # HOMEBREW_TAP_TOKEN (fine-grained token with contents:write on that repository).
+      - name: Publish cask to the Homebrew tap
+        if: vars.HOMEBREW_TAP != ''
+        env:
+          TAP: ${{ vars.HOMEBREW_TAP }}
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$TAP_TOKEN" ]; then echo "::error::HOMEBREW_TAP_TOKEN is not set"; exit 1; fi
+          git clone --depth 1 "https://x-access-token:${TAP_TOKEN}@github.com/${TAP}.git" tap
+          mkdir -p tap/Casks
+          cp cask/snagentic.rb tap/Casks/snagentic.rb
+          cd tap
+          git config user.name "snagentic release"
+          git config user.email "snagentic-release@users.noreply.github.com"
+          git add Casks/snagentic.rb
+          git diff --cached --quiet && { echo "cask unchanged"; exit 0; }
+          git commit -m "snagentic ${GITHUB_REF_NAME#v}"
+          git push origin HEAD

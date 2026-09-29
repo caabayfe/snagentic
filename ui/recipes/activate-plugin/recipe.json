@@ -1,0 +1,24 @@
+{
+  "name": "activate-plugin",
+  "description": "Activate a plugin from its classic v_plugin record. Use only when sn_cicd plugin activation is unavailable for that plugin (for example, it needs the demo-data dialog).",
+  "mutating": true,
+  "api_alternative": "plugin.activate",
+  "parameters": {
+    "plugin_id": {
+      "required": true,
+      "pattern": "^[A-Za-z0-9_.\\-]{1,100}$",
+      "description": "Plugin ID, for example com.snc.incident.mim"
+    },
+    "load_demo_data": {
+      "pattern": "^(true|false)$",
+      "description": "Whether to load demo data (default false)"
+    }
+  },
+  "verified_releases": [],
+  "steps": [
+    "Open v_plugin filtered by plugin ID",
+    "Open the plugin record",
+    "Click Activate/Upgrade and confirm the dialog",
+    "Wait for the activation progress to finish"
+  ]
+}

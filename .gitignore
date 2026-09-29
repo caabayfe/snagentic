@@ -1,0 +1,25 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+.snagentic/
+config/snagentic.yaml
+ui/node_modules/
+
+# macOS Finder metadata
+.DS_Store
+
+# ServiceNow instance data (mirrors, metadata, documentation) lives in a separate
+# repository. This repository contains only the snagentic application code.
+instances/
+servicenow/*
+!servicenow/app/

@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "snagentic"
+dynamic = ["version"]
+description = "Domain-aware ServiceNow filesystem synchronization for GitHub Copilot CLI"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "MIT"
+license-files = ["LICENSE"]
+dependencies = [
+  "httpx>=0.28,<1",
+  "keyring>=25.6,<26",
+  "pydantic>=2.10,<3",
+  "PyYAML>=6.0,<7",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.14,<2",
+  "pip-audit>=2.10,<3",
+  "pytest>=9.0.3,<10",
+  "pytest-cov>=7,<8",
+  "respx>=0.22,<1",
+  "ruff>=0.9,<1",
+  "types-PyYAML>=6.0,<7",
+]
+docs = [
+  "mkdocs-material>=9.5,<10",
+]
+native = [
+  "pyinstaller>=6.11,<7",
+]
+
+[project.scripts]
+snagentic = "snagentic.cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/snagentic"]
+
+[tool.hatch.build.targets.wheel.force-include]
+".github/extensions/snagentic/extension.mjs" = "snagentic/_assets/copilot-extension/extension.mjs"
+".github/extensions/snagentic/instance.mjs" = "snagentic/_assets/copilot-extension/instance.mjs"
+".github/extensions/snagentic/lib.mjs" = "snagentic/_assets/copilot-extension/lib.mjs"
+"copilot-plugin" = "snagentic/_assets/copilot-plugin"
+"ui/package.json" = "snagentic/_assets/ui/package.json"
+"ui/package-lock.json" = "snagentic/_assets/ui/package-lock.json"
+"ui/src" = "snagentic/_assets/ui/src"
+"ui/recipes" = "snagentic/_assets/ui/recipes"
+
+[tool.hatch.version]
+path = "src/snagentic/__init__.py"
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = [".snagentic", "instances", "servicenow", "ui/node_modules"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/snagentic/instance/docevidence.py" = ["S506"]
+"src/snagentic/instance/docs.py" = ["S506"]
+"src/snagentic/instance/docsource.py" = ["S506"]
+"src/snagentic/instance/functional.py" = ["S506"]
+"src/snagentic/instance/records.py" = ["S506"]
+"tests/**/*.py" = ["S101", "S105", "S106", "S311", "S603", "S607"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+packages = ["snagentic"]

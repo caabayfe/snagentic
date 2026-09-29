@@ -1,0 +1,34 @@
+{
+  "artifacts": [
+    {
+      "artifact_type": "acl",
+      "sys_id": "11111111111111111111111111111111",
+      "domain": {"sys_id": "global"},
+      "application_scope": {"sys_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+    },
+    {
+      "artifact_type": "dictionary",
+      "sys_id": "22222222222222222222222222222222",
+      "domain": {"sys_id": "global"},
+      "application_scope": {"sys_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+    },
+    {
+      "artifact_type": "client_script",
+      "sys_id": "33333333333333333333333333333333",
+      "domain": {"sys_id": "global"},
+      "application_scope": {"sys_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+    },
+    {
+      "artifact_type": "ui_action",
+      "sys_id": "44444444444444444444444444444444",
+      "domain": {"sys_id": "global"},
+      "application_scope": {"sys_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+    },
+    {
+      "artifact_type": "system_property",
+      "sys_id": "55555555555555555555555555555555",
+      "domain": {"sys_id": "global"},
+      "application_scope": {"sys_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+    }
+  ]
+}

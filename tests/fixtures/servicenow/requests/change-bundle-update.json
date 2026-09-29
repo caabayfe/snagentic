@@ -1,0 +1,22 @@
+{
+  "bundle_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "changes": [
+    {
+      "operation": "update",
+      "artifact_type": "script_include",
+      "sys_id": "11111111111111111111111111111111",
+      "domain": {"sys_id": "global"},
+      "application_scope": {"sys_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+      "expected": {
+        "sys_mod_count": 7,
+        "revision": "2026-09-18 10:15:00:7",
+        "hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      },
+      "values": {
+        "description": "Fictional utility updated by a sanitized fixture",
+        "active": true,
+        "script": "var FictionalUtility = Class.create(); FictionalUtility.prototype = {type: 'FictionalUtility'};"
+      }
+    }
+  ]
+}

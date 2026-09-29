@@ -1,0 +1,9 @@
+{
+  "ok": false,
+  "correlation_id": "fixture-conflict-001",
+  "error": {
+    "code": "concurrency_conflict",
+    "message": "Artifact changed after the bundle was prepared",
+    "details": [{"artifact_type": "script_include", "sys_id": "11111111111111111111111111111111"}]
+  }
+}

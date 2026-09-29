@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "correlation_id": "fixture-preflight-001",
+  "data": {
+    "bundle_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "valid": true,
+    "change_count": 1,
+    "changes": [
+      {
+        "index": 0,
+        "status": "valid",
+        "concurrency": {
+          "status": "ready",
+          "current": {
+            "sys_mod_count": 7,
+            "revision": "2026-09-18 10:15:00:7",
+            "hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+          }
+        }
+      }
+    ]
+  },
+  "meta": {}
+}

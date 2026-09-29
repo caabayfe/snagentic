@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:snagentic:servicenow:change-bundle:v1",
+  "title": "Development change bundle v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["bundle_id", "changes"],
+  "properties": {
+    "bundle_id": {"$ref": "#/$defs/sysId"},
+    "changes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": {"$ref": "#/$defs/change"}
+    }
+  },
+  "$defs": {
+    "sysId": {"type": "string", "pattern": "^[0-9a-fA-F]{32}$"},
+    "artifactType": {
+      "enum": ["script_include", "business_rule", "scripted_rest_api", "scripted_rest_resource"]
+    },
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sys_id"],
+      "properties": {
+        "sys_id": {"type": "string", "pattern": "^(global|[0-9a-fA-F]{32})$"}
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sys_id"],
+      "properties": {"sys_id": {"$ref": "#/$defs/sysId"}}
+    },
+    "expected": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sys_mod_count", "revision", "hash"],
+      "properties": {
+        "sys_mod_count": {"type": "integer", "minimum": 0},
+        "revision": {"type": "string", "minLength": 3, "maxLength": 100},
+        "hash": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"}
+      }
+    },
+    "values": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": ["string", "number", "integer", "boolean"]
+      }
+    },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operation", "artifact_type", "domain", "application_scope"],
+      "properties": {
+        "operation": {"enum": ["create", "update", "delete"]},
+        "artifact_type": {"$ref": "#/$defs/artifactType"},
+        "sys_id": {"$ref": "#/$defs/sysId"},
+        "domain": {"$ref": "#/$defs/domain"},
+        "application_scope": {"$ref": "#/$defs/scope"},
+        "expected": {"$ref": "#/$defs/expected"},
+        "values": {"$ref": "#/$defs/values"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"operation": {"const": "create"}}},
+          "then": {
+            "required": ["values"],
+            "not": {"anyOf": [{"required": ["sys_id"]}, {"required": ["expected"]}]}
+          }
+        },
+        {
+          "if": {"properties": {"operation": {"const": "update"}}},
+          "then": {"required": ["sys_id", "expected", "values"]}
+        },
+        {
+          "if": {"properties": {"operation": {"const": "delete"}}},
+          "then": {
+            "required": ["sys_id", "expected"],
+            "not": {"required": ["values"]}
+          }
+        }
+      ]
+    }
+  }
+}

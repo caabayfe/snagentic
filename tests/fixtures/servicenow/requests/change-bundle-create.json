@@ -1,0 +1,21 @@
+{
+  "bundle_id": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "changes": [
+    {
+      "operation": "create",
+      "artifact_type": "scripted_rest_resource",
+      "domain": {"sys_id": "global"},
+      "application_scope": {"sys_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+      "values": {
+        "name": "Fictional status",
+        "http_method": "GET",
+        "relative_path": "/fictional-status",
+        "short_description": "Sanitized fictional resource",
+        "requires_authentication": true,
+        "active": true,
+        "web_service_definition": "33333333333333333333333333333333",
+        "operation_script": "(function process(request, response) { response.setBody({status: 'fictional'}); })(request, response);"
+      }
+    }
+  ]
+}

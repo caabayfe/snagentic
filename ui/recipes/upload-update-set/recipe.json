@@ -1,0 +1,20 @@
+{
+  "name": "upload-update-set",
+  "description": "Upload an update set XML file as a retrieved update set (Retrieved Update Sets > Import Update Set from XML). There is no supported REST API for XML import.",
+  "mutating": true,
+  "api_alternative": "update_set.retrieve (only from a configured update source)",
+  "parameters": {
+    "file": {
+      "type": "file",
+      "required": true,
+      "extensions": [".xml"],
+      "description": "Repository-relative path to an exported update set XML file"
+    }
+  },
+  "verified_releases": [],
+  "steps": [
+    "Open upload.do for sys_remote_update_set",
+    "Attach the XML file",
+    "Submit and wait for the retrieved update set list"
+  ]
+}

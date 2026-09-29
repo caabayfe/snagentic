@@ -1,0 +1,51 @@
+{
+  "hash_version": 1,
+  "algorithm": "sha256(canonical_json({class, fields: {k: canonical_text(v)}}))",
+  "canonical_text": "CRLF/CR -> LF, then strip trailing LF",
+  "canonical_json": "sorted keys, separators (',',':'), ensure_ascii",
+  "vectors": [
+    {
+      "name": "empty",
+      "class": "sys_script_include",
+      "fields": {},
+      "hash": "c382c0bfaddfb9f6a9bdde7f57f78594b12c7954d63edca21a1535538929c254"
+    },
+    {
+      "name": "crlf-and-trailing-newlines",
+      "class": "sys_script_include",
+      "fields": {
+        "name": "Util",
+        "script": "a\r\nb\r\n\r\n"
+      },
+      "hash": "a1a003c14d13aea4c4bed245187b8c4b2ee7a4efc40524d23a25fceca2b2b686"
+    },
+    {
+      "name": "equivalent-lf",
+      "class": "sys_script_include",
+      "fields": {
+        "name": "Util",
+        "script": "a\nb"
+      },
+      "hash": "a1a003c14d13aea4c4bed245187b8c4b2ee7a4efc40524d23a25fceca2b2b686"
+    },
+    {
+      "name": "unicode-and-order",
+      "class": "sys_script",
+      "fields": {
+        "when": "before",
+        "name": "Café",
+        "collection": "incident"
+      },
+      "hash": "d49026eff13b5df3e6d54292dacb5ea32a70df635d770f747138bea24dd56693"
+    },
+    {
+      "name": "empty-string-field",
+      "class": "sys_properties",
+      "fields": {
+        "name": "x.y",
+        "description": ""
+      },
+      "hash": "4cabc0b44ba8718e13f3720dffc799269177eeb10f453dabe9f717c7859bdf86"
+    }
+  ]
+}

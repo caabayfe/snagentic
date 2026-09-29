@@ -1,0 +1,8 @@
+"""PyInstaller entry point for the native snagentic executable."""
+
+import sys
+
+from snagentic.cli.main import main
+
+if __name__ == "__main__":
+    sys.exit(main())

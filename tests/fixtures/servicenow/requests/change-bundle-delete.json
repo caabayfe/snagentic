@@ -1,0 +1,17 @@
+{
+  "bundle_id": "cccccccccccccccccccccccccccccccc",
+  "changes": [
+    {
+      "operation": "delete",
+      "artifact_type": "business_rule",
+      "sys_id": "22222222222222222222222222222222",
+      "domain": {"sys_id": "dddddddddddddddddddddddddddddddd"},
+      "application_scope": {"sys_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+      "expected": {
+        "sys_mod_count": 3,
+        "revision": "2026-09-17 08:00:00:3",
+        "hash": "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+      }
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+{
+  "ok": true,
+  "correlation_id": "fixture-capabilities-001",
+  "data": {
+    "categories": [
+      "native_source_control",
+      "managed_bidirectional",
+      "export_only",
+      "diagnostic_only",
+      "excluded"
+    ],
+    "capabilities": [
+      {"key": "servicenow_source_control", "category": "native_source_control", "description": "ServiceNow-managed application source control and packaging metadata"},
+      {"key": "change_bundle", "category": "managed_bidirectional", "description": "Validated development-only create, update, and delete operations"},
+      {"key": "artifact_export", "category": "export_only", "description": "Allowlisted configuration inventory and content export"},
+      {"key": "bounded_diagnostics", "category": "diagnostic_only", "description": "Redacted configuration and aggregate operational diagnostics"},
+      {"key": "sensitive_and_business_data", "category": "excluded", "description": "Credentials, encrypted properties, journals, attachments, requests, and unrestricted business records"}
+    ],
+    "artifact_types": [
+      {"key": "acl", "category": "managed_bidirectional"},
+      {"key": "business_rule", "category": "managed_bidirectional"},
+      {"key": "client_script", "category": "managed_bidirectional"},
+      {"key": "dictionary", "category": "managed_bidirectional"},
+      {"key": "notification", "category": "export_only"},
+      {"key": "scheduled_job", "category": "export_only"},
+      {"key": "script_include", "category": "managed_bidirectional"},
+      {"key": "scripted_rest_api", "category": "managed_bidirectional"},
+      {"key": "scripted_rest_resource", "category": "managed_bidirectional"},
+      {"key": "system_property", "category": "export_only"},
+      {"key": "ui_action", "category": "managed_bidirectional"},
+      {"key": "ui_policy", "category": "managed_bidirectional"}
+    ]
+  },
+  "meta": {}
+}

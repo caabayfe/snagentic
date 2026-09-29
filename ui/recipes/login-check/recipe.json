@@ -1,0 +1,9 @@
+{
+  "name": "login-check",
+  "description": "Log in with the local UI user and read the instance build from stats.do. Proves UI automation works before running changing recipes.",
+  "mutating": false,
+  "api_alternative": null,
+  "parameters": {},
+  "verified_releases": [],
+  "steps": ["Log in through login.do", "Open stats.do", "Read build name, tag and date"]
+}

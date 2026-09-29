@@ -1,0 +1,15 @@
+# WinGet installer manifest template. Release automation replaces the placeholders from
+# the release's SHA256SUMS file and submits the manifests to winget-pkgs.
+PackageIdentifier: {{PUBLISHER}}.snagentic
+PackageVersion: {{VERSION}}
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: snagentic\snagentic.exe
+    PortableCommandAlias: snagentic
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/{{OWNER}}/{{REPO}}/releases/download/v{{VERSION}}/snagentic-{{VERSION}}-windows-x64.zip
+    InstallerSha256: {{SHA256_WINDOWS_X64}}
+ManifestType: installer
+ManifestVersion: 1.6.0

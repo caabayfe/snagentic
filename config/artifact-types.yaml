@@ -1,0 +1,43 @@
+version: 1
+artifact_types:
+  script_include:
+    table: sys_script_include
+    capability: managed_bidirectional
+    natural_key: [api_name]
+  business_rule:
+    table: sys_script
+    capability: managed_bidirectional
+    natural_key: [collection, name]
+  acl:
+    table: sys_security_acl
+    capability: managed_bidirectional
+    natural_key: [type, name, operation]
+  dictionary:
+    table: sys_dictionary
+    capability: managed_bidirectional
+    natural_key: [name, element]
+  system_property:
+    table: sys_properties
+    capability: export_only
+    natural_key: [name]
+    excluded_fields: [value]
+  flow:
+    table: sys_hub_flow
+    capability: export_only
+    natural_key: [internal_name]
+  scripted_rest_api:
+    table: sys_ws_definition
+    capability: managed_bidirectional
+    natural_key: [service_id]
+  scripted_rest_resource:
+    table: sys_ws_operation
+    capability: managed_bidirectional
+    natural_key: [web_service_definition, name, http_method]
+  update_set:
+    table: sys_update_set
+    capability: export_only
+    natural_key: [name]
+  deployment_history:
+    table: sys_upgrade_history
+    capability: diagnostic_only
+    natural_key: [sys_id]

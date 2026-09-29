@@ -1,0 +1,30 @@
+{
+  "name": "incident-task-create",
+  "description": "Validate Create Incident Task save, cancel, or inactive-Incident behavior in the classic UI.",
+  "mutating": true,
+  "api_alternative": null,
+  "parameters": {
+    "incident_sys_id": {
+      "required": false,
+      "pattern": "^[0-9a-f]{32}$",
+      "description": "Optional active Incident sys_id. The recipe selects the most recently updated active Incident when omitted."
+    },
+    "short_description": {
+      "required": false,
+      "pattern": "^[A-Za-z0-9_.:\\- /]{1,200}$",
+      "description": "Validation task short description."
+    },
+    "scenario": {
+      "required": false,
+      "pattern": "^(save|cancel|inactive)$",
+      "description": "Workflow scenario to validate (default save)."
+    }
+  },
+  "verified_releases": [],
+  "steps": [
+    "Open the selected Incident or choose a recent Incident matching the scenario",
+    "Verify the action is hidden for an inactive Incident, or open the task proposal",
+    "Verify the unsaved task is linked to the Incident and prepopulated",
+    "Save and reopen the task, or cancel and verify no task was persisted"
+  ]
+}

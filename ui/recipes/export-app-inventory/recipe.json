@@ -1,0 +1,15 @@
+{
+  "name": "export-app-inventory",
+  "description": "Export read-only Application Manager inventory when store tables are not available through the supported Table API.",
+  "mutating": false,
+  "api_alternative": "Table API sys_store_app",
+  "parameters": {},
+  "verified_releases": [],
+  "steps": [
+    "Open Application Manager",
+    "Wait for application inventory",
+    "Open the complete Store applications inventory",
+    "Use the largest available page size",
+    "Collect application tiles across result pages"
+  ]
+}

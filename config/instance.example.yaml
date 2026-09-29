@@ -1,0 +1,40 @@
+# Copy to instances/<name>/instance.yaml (or run `snagentic instance add <name> ...`).
+# Only credential NAMES belong here; never token, username or password values.
+# Store the values with `snagentic auth login -i <name>` (macOS Keychain, Windows Credential
+# Manager or Linux Secret Service). Entries are bound to this instance's host.
+name: dev
+url: https://your-development-instance.service-now.com/
+kind: development            # development | test | production (only development is writable)
+auth:
+  mode: basic                # basic | bearer
+  username_env: SNAGENTIC_DEV_USERNAME
+  password_env: SNAGENTIC_DEV_PASSWORD
+  store: keychain            # keychain | auto (keychain, then environment) | env (legacy)
+page_size: 500
+sync:
+  include_baseline: false    # true = read everything through sys_metadata (slow); prefer baseline_classes
+  baseline_classes: ["*"]    # classes mirrored in full incl. out of box; "*" = every sys_metadata class
+  # baseline_exclude: exact classes not mirrored record by record (defaults: sys_dictionary,
+  #   sys_documentation, sys_translated, sys_security_acl_role, flow/action snapshots)
+  # child_tables: plain tables written to <record>/_children/ (defaults: flow logic, form and
+  #   list layout, workflow activities, variable values), e.g. {sys_ui_element: {parent_field: sys_ui_section}}
+  workers: 6                 # concurrent Table API requests during fetch
+  model: true                # derive model/tables/<table>.yaml
+  scopes: []                 # e.g. [x_acme_hr, global]; empty = all scopes
+  include_classes: []        # restrict to specific sys_metadata classes; empty = all
+  # deny_classes: defaults exclude credential, certificate, translation and generated classes
+  # Operational inventory outside sys_metadata; mirrored and indexed read-only.
+  operational_tables: [v_plugin, sys_plugins, sys_store_app, domain]
+  redact_fields:
+    sys_properties: [value]
+  # Exact non-secret properties whose values are needed for design and version control.
+  # Secret-like names (password, token, credential, auth, API/private keys) are rejected.
+  property_value_allowlist: []  # e.g. [glide.incident.close.code]
+  watermark_overlap_seconds: 54000
+  update_set_window_days: 30
+docs:
+  tables: [task, incident, problem, change_request, sc_request, sc_req_item, sc_task, kb_knowledge]
+ui:                          # local (non-SSO) user for Playwright recipes
+  username_env: SNAGENTIC_DEV_USERNAME
+  password_env: SNAGENTIC_DEV_PASSWORD
+  headless: true

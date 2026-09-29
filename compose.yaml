@@ -1,0 +1,46 @@
+services:
+  cli:
+    build:
+      context: .
+      target: development
+    working_dir: /workspace
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - .:/workspace
+  test:
+    build:
+      context: .
+      target: development
+    working_dir: /workspace
+    entrypoint: []
+    command: pytest
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - .:/workspace
+  lint:
+    build:
+      context: .
+      target: development
+    working_dir: /workspace
+    entrypoint: []
+    command: sh -c "ruff check src tests && mypy src"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - .:/workspace
+  ui:
+    image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+    working_dir: /workspace/ui
+    entrypoint: ["sh", "-c", "[ -d node_modules/playwright ] || npm ci --no-audit --no-fund --silent >&2; exec node src/cli.mjs"]
+    init: true
+    ipc: host
+    volumes:
+      - .:/workspace

@@ -1,0 +1,18 @@
+{
+  "namespace": "x_snagentic_source",
+  "api_id": "source",
+  "version": "v1",
+  "requires_authentication": true,
+  "resources": [
+    {"method": "GET", "path": "/capabilities", "script": "capabilities_get.js"},
+    {"method": "GET", "path": "/domains", "script": "domains_get.js"},
+    {"method": "GET", "path": "/contexts", "script": "contexts_get.js"},
+    {"method": "GET", "path": "/artifacts", "script": "artifacts_get.js"},
+    {"method": "POST", "path": "/artifacts/export", "script": "artifact_export_post.js"},
+    {"method": "POST", "path": "/preflight", "script": "preflight_post.js"},
+    {"method": "POST", "path": "/change-bundles/apply", "script": "change_bundle_apply_post.js"},
+    {"method": "GET", "path": "/tombstones", "script": "tombstones_get.js"},
+    {"method": "GET", "path": "/diagnostics", "script": "diagnostics_get.js"}
+  ],
+  "generated_metadata": false
+}

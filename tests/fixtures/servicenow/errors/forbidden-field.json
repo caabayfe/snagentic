@@ -1,0 +1,9 @@
+{
+  "ok": false,
+  "correlation_id": "fixture-field-001",
+  "error": {
+    "code": "forbidden_field",
+    "message": "A field is not permitted",
+    "details": ["fictional_secret"]
+  }
+}

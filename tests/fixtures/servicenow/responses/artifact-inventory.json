@@ -1,0 +1,60 @@
+{
+  "ok": true,
+  "correlation_id": "fixture-inventory-001",
+  "data": {
+    "items": [
+      {
+        "artifact_type": "acl",
+        "sys_id": "11111111111111111111111111111111",
+        "name": "x_fictional_record",
+        "domain": {"sys_id": "global", "name": "global", "path": "/"},
+        "application_scope": {"sys_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "name": "Fictional App", "scope": "x_fictional_app"},
+        "sys_mod_count": 7,
+        "revision": "2026-09-18 10:15:00:7",
+        "hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      },
+      {
+        "artifact_type": "dictionary",
+        "sys_id": "22222222222222222222222222222222",
+        "name": "u_fictional_status",
+        "domain": {"sys_id": "global", "name": "global", "path": "/"},
+        "application_scope": {"sys_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "name": "Fictional App", "scope": "x_fictional_app"},
+        "sys_mod_count": 3,
+        "revision": "2026-09-18 10:16:00:3",
+        "hash": "1123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      },
+      {
+        "artifact_type": "client_script",
+        "sys_id": "33333333333333333333333333333333",
+        "name": "Fictional form guard",
+        "domain": {"sys_id": "global", "name": "global", "path": "/"},
+        "application_scope": {"sys_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "name": "Fictional App", "scope": "x_fictional_app"},
+        "sys_mod_count": 2,
+        "revision": "2026-09-18 10:17:00:2",
+        "hash": "2123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      },
+      {
+        "artifact_type": "ui_action",
+        "sys_id": "44444444444444444444444444444444",
+        "name": "Fictional action",
+        "domain": {"sys_id": "global", "name": "global", "path": "/"},
+        "application_scope": {"sys_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "name": "Fictional App", "scope": "x_fictional_app"},
+        "sys_mod_count": 4,
+        "revision": "2026-09-18 10:18:00:4",
+        "hash": "3123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      },
+      {
+        "artifact_type": "system_property",
+        "sys_id": "55555555555555555555555555555555",
+        "name": "x_fictional_app.behavior_mode",
+        "domain": {"sys_id": "global", "name": "global", "path": "/"},
+        "application_scope": {"sys_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "name": "Fictional App", "scope": "x_fictional_app"},
+        "sys_mod_count": 1,
+        "revision": "2026-09-18 10:19:00:1",
+        "hash": "4123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      }
+    ],
+    "next_cursor": null
+  },
+  "meta": {"artifact_type": "fixture_mixed_types", "domain_id": "global", "scope_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "limit": 100}
+}

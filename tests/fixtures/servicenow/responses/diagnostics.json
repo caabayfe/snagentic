@@ -1,0 +1,15 @@
+{
+  "ok": true,
+  "correlation_id": "fixture-diagnostics-001",
+  "data": {
+    "api_version": "v1",
+    "environment": "development",
+    "write_gate_open": true,
+    "limits": {"max_page_size": 200, "max_context_groups_per_type": 1000, "max_export_items": 100, "max_change_items": 50, "max_body_chars": 524288},
+    "allowlisted_artifact_types": ["acl", "business_rule", "client_script", "dictionary", "notification", "scheduled_job", "script_include", "scripted_rest_api", "scripted_rest_resource", "system_property", "ui_action", "ui_policy"],
+    "window_minutes": 15,
+    "aggregate": {"tombstones_created": 1},
+    "redaction": {"credentials": true, "encrypted_properties": true, "journals": true, "request_bodies": true, "attachments": true, "business_records": true}
+  },
+  "meta": {}
+}

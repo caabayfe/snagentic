@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:snagentic:servicenow:artifact-export-request:v1",
+  "title": "Artifact export request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifacts"],
+  "properties": {
+    "artifacts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["artifact_type", "sys_id", "domain", "application_scope"],
+        "properties": {
+          "artifact_type": {
+            "enum": ["script_include", "business_rule", "scripted_rest_api", "scripted_rest_resource"]
+          },
+          "sys_id": {"$ref": "#/$defs/sysId"},
+          "domain": {"$ref": "#/$defs/domain"},
+          "application_scope": {"$ref": "#/$defs/scope"}
+        }
+      }
+    }
+  },
+  "$defs": {
+    "sysId": {"type": "string", "pattern": "^[0-9a-fA-F]{32}$"},
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sys_id"],
+      "properties": {
+        "sys_id": {
+          "type": "string",
+          "pattern": "^(global|[0-9a-fA-F]{32})$"
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sys_id"],
+      "properties": {"sys_id": {"$ref": "#/$defs/sysId"}}
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "matcher": "snagentic_instance_apply",
+        "exec": "snagentic",
+        "args": ["copilot", "hook", "pre-tool-use"],
+        "timeoutSec": 600
+      }
+    ]
+  }
+}

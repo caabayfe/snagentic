@@ -1,0 +1,25 @@
+{
+  "name": "install-app",
+  "description": "Install an entitled application from the classic Application Repository when the CI/CD app.install operation cannot deliver it.",
+  "mutating": true,
+  "api_alternative": "app.install",
+  "parameters": {
+    "scope": {
+      "required": true,
+      "pattern": "^[A-Za-z][A-Za-z0-9_]{1,79}$",
+      "description": "Application scope, for example sn_hamp"
+    },
+    "name": {
+      "required": false,
+      "pattern": "^[A-Za-z0-9_.:\\- /]{1,200}$",
+      "description": "Application display name when it differs from the scope"
+    }
+  },
+  "verified_releases": [],
+  "steps": [
+    "Open Application Manager",
+    "Search for and open the entitled application",
+    "Click Install/Update/Upgrade and confirm the dialog",
+    "Wait for installation and dependency processing to finish"
+  ]
+}
