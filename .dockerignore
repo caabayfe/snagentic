@@ -6,7 +6,6 @@
 .ruff_cache
 .snagentic
 .venv
-config/snagentic.yaml
 dist
 htmlcov
 instances

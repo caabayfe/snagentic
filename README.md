@@ -50,8 +50,7 @@ snagentic instance -i dev promote --confirm   # complete update sets + manifest
 ```
 
 Other commands: `status`, `review`, `review-record`, `scan-results`, `update-sets`, `collisions`, `activity`, `index`, `search`,
-`refs`, `ops-list`, `ops-run`, `complete`, `ui list`, `ui run`, and `migrate` (import
-profiles from `config/snagentic.yaml`). Contributors can also run them through Docker with
+`refs`, `ops-list`, `ops-run`, `complete`, `ui list`, and `ui run`. Contributors can also run them through Docker with
 `docker compose run --rm cli instance ...`. See [docs/architecture.md](docs/architecture.md)
 for the design and [docs/copilot-cli.md](docs/copilot-cli.md) for the agent tools.
 The ServiceNow architect and reviewer agents, skills, review rules, waivers, the apply
@@ -88,13 +87,10 @@ The safety model is intentionally asymmetric:
   execution order, cleanup controls, and sign-off matrix.
 - `docs/documentation-authoring.md`: content model, examples, evidence links, review rules,
   and local/CI documentation workflow.
-- `src/snagentic/`: legacy companion-app synchronization engine and CLI.
-- `servicenow/app/`: companion scoped application source and endpoint contracts.
 - `.github/extensions/snagentic/`: Copilot CLI tools.
 - `copilot-plugin/`: Copilot CLI plugin with the ServiceNow architect and reviewer agents,
   the `servicenow-*` skills, and the `preToolUse` apply-gate hook.
-- `config/`: non-secret profiles and artifact/redaction policies.
-- `servicenow/global`, `servicenow/domains`, `servicenow/scopes`: normalized artifacts.
+- `config/`: safe example instance profiles.
 - `.snagentic/`: local-only state: baselines, mirror work trees, sync state, search
   index, diagnostics, UI evidence, and promotion manifests.
 
@@ -108,28 +104,16 @@ docker compose run --rm test
 node --test tests/extension tests/ui
 ```
 
-Create local configuration with:
+Create an instance profile with:
 
 ```bash
-docker compose run --rm cli init
-```
-
-For ServiceNow basic authentication instead of OAuth bearer tokens:
-
-```bash
-docker compose run --rm cli init --auth basic
-export SNAGENTIC_DEV_USERNAME='service-account-name'
-export SNAGENTIC_DEV_PASSWORD='service-account-password'
+docker compose run --rm cli instance add dev --url https://dev.service-now.com/ --kind development
+snagentic auth login -i dev
 ```
 
 Instances that enforce the ServiceNow basic-auth restriction reject REST basic auth
 (`401 User is not authenticated`) unless the user has the `snc_basic_auth_api_access`
 role.
-
-The corresponding test and production variables are
-`SNAGENTIC_TEST_USERNAME`/`SNAGENTIC_TEST_PASSWORD` and
-`SNAGENTIC_PROD_USERNAME`/`SNAGENTIC_PROD_PASSWORD`. OAuth bearer
-authentication remains the recommended production setup.
 
 Prefer `snagentic auth login`, which stores these values in the OS credential store.
 Environment variables named by the selected profile remain supported for CI and

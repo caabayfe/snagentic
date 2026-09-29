@@ -4,21 +4,17 @@ import test from "node:test";
 import {
   MAX_OUTPUT_BYTES,
   REQUESTED_ENVIRONMENT_VARIABLES,
-  buildCliLauncher,
-  buildDockerArguments,
-  buildInspectionLauncher,
-  buildPythonArguments,
+  buildLauncherForArgv,
   childEnvironment,
   containerEnvironmentNames,
   formatCappedOutput,
   joinSessionWithPermissionFallback,
   parseCliFailure,
-  pushPermissionDecision,
-  sanitizeArguments,
   selectPythonOverride,
   truncateUtf8,
   validateCredentialNames,
 } from "../../.github/extensions/snagentic/lib.mjs";
+import { buildInstanceInspectionLauncher } from "../../.github/extensions/snagentic/instance.mjs";
 
 test("credential permission denial falls back to registering tools without environment access", async () => {
   const calls = [];
@@ -33,7 +29,7 @@ test("credential permission denial falls back to registering tools without envir
     return session;
   }, {
     requestedEnvironmentVariables: ["SNAGENTIC_DEV_TOKEN"],
-    tools: [{ name: "snagentic_status" }],
+    tools: [{ name: "snagentic_instance_status" }],
   });
 
   assert.equal(result.session, session);
@@ -41,10 +37,10 @@ test("credential permission denial falls back to registering tools without envir
   assert.deepEqual(calls, [
     {
       requestedEnvironmentVariables: ["SNAGENTIC_DEV_TOKEN"],
-      tools: [{ name: "snagentic_status" }],
+      tools: [{ name: "snagentic_instance_status" }],
     },
     {
-      tools: [{ name: "snagentic_status" }],
+      tools: [{ name: "snagentic_instance_status" }],
     },
   ]);
 });
@@ -62,128 +58,6 @@ test("session registration errors other than credential denial are not hidden", 
   );
 });
 
-test("builds argv without shell interpolation", () => {
-  const args = sanitizeArguments("query", {
-    config: "config/snagentic.yaml",
-    environment: "dev",
-    text: "incident workflow",
-    domain: "global",
-    artifactType: "script-include",
-  });
-
-  assert.deepEqual(buildPythonArguments("query", args), [
-    "-m",
-    "snagentic",
-    "--json",
-    "--config",
-    "config/snagentic.yaml",
-    "--environment",
-    "dev",
-    "query",
-    "incident workflow",
-    "--domain",
-    "global",
-    "--artifact-type",
-    "script-include",
-  ]);
-});
-
-test("rejects unknown arguments and unsafe config paths", () => {
-  assert.throws(
-    () => sanitizeArguments("status", { unexpected: true }),
-    /unsupported argument/u,
-  );
-  assert.throws(
-    () => sanitizeArguments("status", { config: "../outside.yaml" }),
-    /parent traversal/u,
-  );
-});
-
-test("push requires explicit confirmation and always adds approve", () => {
-  assert.throws(
-    () => sanitizeArguments("push", { confirm: true }),
-    /explicit environment/u,
-  );
-  assert.throws(
-    () => sanitizeArguments("push", { environment: "dev" }),
-    /confirm=true/u,
-  );
-  const args = sanitizeArguments("push", { environment: "dev", confirm: true });
-  assert.deepEqual(buildPythonArguments("push", args), [
-    "-m",
-    "snagentic",
-    "--json",
-    "--environment",
-    "dev",
-    "push",
-    "--approve",
-  ]);
-});
-
-test("permission hook uses configured profile kind rather than environment name", async () => {
-  assert.equal(
-    (
-      await pushPermissionDecision(
-        {
-          toolName: "snagentic_push",
-          toolArgs: { environment: "looks-like-dev", confirm: true },
-        },
-        {
-          inspectProfile: async () => ({
-            environment: "looks-like-dev",
-            kind: "production",
-            credentialNames: ["SNAGENTIC_PROD_TOKEN"],
-          }),
-        },
-      )
-    ).permissionDecision,
-    "deny",
-  );
-  assert.equal(
-    (
-      await pushPermissionDecision(
-        {
-          toolName: "snagentic_push",
-          toolArgs: { environment: "release-sandbox", confirm: true },
-        },
-        {
-          inspectProfile: async () => ({
-            environment: "release-sandbox",
-            kind: "development",
-            credentialNames: ["SNAGENTIC_DEV_TOKEN"],
-          }),
-        },
-      )
-    ).permissionDecision,
-    "ask",
-  );
-  assert.equal(
-    (
-      await pushPermissionDecision({
-        toolName: "snagentic_push",
-        toolArgs: { confirm: true },
-      })
-    ).permissionDecision,
-    "deny",
-  );
-  assert.equal(
-    (
-      await pushPermissionDecision(
-        {
-          toolName: "snagentic_push",
-          toolArgs: { environment: "dev", confirm: true },
-        },
-        {
-          inspectProfile: async () => {
-            throw new Error("invalid YAML");
-          },
-        },
-      )
-    ).permissionDecision,
-    "deny",
-  );
-});
-
 test("uses Docker by default and preserves an explicit safe Python override", () => {
   assert.equal(selectPythonOverride({}), undefined);
   assert.equal(
@@ -195,7 +69,10 @@ test("uses Docker by default and preserves an explicit safe Python override", ()
     /simple executable name/u,
   );
 
-  const dockerLauncher = buildCliLauncher("status", {}, { PATH: "/usr/bin" });
+  const dockerLauncher = buildLauncherForArgv(
+    ["--json", "instance", "-i", "dev", "status"],
+    { PATH: "/usr/bin" },
+  );
   assert.equal(dockerLauncher.executable, "docker");
   assert.deepEqual(dockerLauncher.argv, [
     "compose",
@@ -204,16 +81,20 @@ test("uses Docker by default and preserves an explicit safe Python override", ()
     "-T",
     "cli",
     "--json",
+    "instance",
+    "-i",
+    "dev",
     "status",
   ]);
 
-  const pythonLauncher = buildCliLauncher(
-    "status",
-    {},
+  const pythonLauncher = buildLauncherForArgv(
+    ["--json", "instance", "-i", "dev", "status"],
     { PATH: "/usr/bin", SNAGENTIC_PYTHON: "/opt/snagentic/bin/python" },
   );
   assert.equal(pythonLauncher.executable, "/opt/snagentic/bin/python");
-  assert.deepEqual(pythonLauncher.argv, ["-m", "snagentic", "--json", "status"]);
+  assert.deepEqual(pythonLauncher.argv, [
+    "-m", "snagentic", "--json", "instance", "-i", "dev", "status",
+  ]);
 });
 
 test("child environment preserves enterprise transport variables and selected credentials", () => {
@@ -258,12 +139,11 @@ test("Docker argv forwards only approved environment names and never values", ()
     "HTTPS_PROXY",
     "SSL_CERT_FILE",
   ]);
-  const argv = buildDockerArguments(
-    "inventory",
-    { environment: "dev" },
+  const argv = buildLauncherForArgv(
+    ["--json", "instance", "-i", "dev", "list"],
     source,
     ["SNAGENTIC_DEV_TOKEN"],
-  );
+  ).argv;
   assert.deepEqual(argv, [
     "compose",
     "run",
@@ -277,9 +157,10 @@ test("Docker argv forwards only approved environment names and never values", ()
     "SSL_CERT_FILE",
     "cli",
     "--json",
-    "--environment",
+    "instance",
+    "-i",
     "dev",
-    "inventory",
+    "list",
   ]);
   assert.equal(argv.includes("service-now-secret"), false);
   assert.equal(argv.includes("proxy-secret"), false);
@@ -293,12 +174,11 @@ test("Docker argv forwards selected basic-auth names without credential values",
     SNAGENTIC_DEV_PASSWORD: "basic-password",
     SNAGENTIC_PROD_PASSWORD: "must-not-pass",
   };
-  const argv = buildDockerArguments(
-    "inventory",
-    { environment: "dev" },
+  const argv = buildLauncherForArgv(
+    ["--json", "instance", "-i", "dev", "list"],
     source,
     ["SNAGENTIC_DEV_USERNAME", "SNAGENTIC_DEV_PASSWORD"],
-  );
+  ).argv;
   assert.equal(argv.includes("SNAGENTIC_DEV_USERNAME"), true);
   assert.equal(argv.includes("SNAGENTIC_DEV_PASSWORD"), true);
   assert.equal(argv.includes("SNAGENTIC_PROD_PASSWORD"), false);
@@ -306,31 +186,24 @@ test("Docker argv forwards selected basic-auth names without credential values",
   assert.equal(argv.includes("basic-password"), false);
 });
 
-test("configuration inspection uses Python inside the cli container by default", () => {
-  const launcher = buildInspectionLauncher(
-    {
-      hostPath: "/repo/config/snagentic.yaml",
-      containerPath: "/workspace/config/snagentic.yaml",
-    },
+test("instance inspection uses the cli container by default", () => {
+  const launcher = buildInstanceInspectionLauncher(
     "dev",
     { PATH: "/usr/bin", HTTPS_PROXY: "https://proxy.example" },
   );
   assert.equal(launcher.executable, "docker");
-  assert.deepEqual(launcher.argv.slice(0, 10), [
+  assert.deepEqual(launcher.argv.slice(0, 7), [
     "compose",
     "run",
     "--rm",
     "-T",
-    "-e",
-    "HTTPS_PROXY",
     "--entrypoint",
     "python",
     "cli",
-    "-c",
   ]);
-  assert.equal(launcher.argv.at(-2), "/workspace/config/snagentic.yaml");
   assert.equal(launcher.argv.at(-1), "dev");
-  assert.equal(launcher.argv.includes("/repo/config/snagentic.yaml"), false);
+  assert.equal(launcher.argv.includes("config/snagentic.yaml"), false);
+  assert.match(launcher.argv.at(-2), /InstanceRegistry/u);
 });
 
 test("rejects credential variables outside the reviewed static allowlist", () => {

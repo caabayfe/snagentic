@@ -1,9 +1,0 @@
-{
-  "ok": false,
-  "correlation_id": "fixture-role-001",
-  "error": {
-    "code": "forbidden",
-    "message": "The required application role is missing",
-    "details": []
-  }
-}

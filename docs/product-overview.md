@@ -216,7 +216,6 @@ The normal lifecycle is:
 | `instances/<name>/update-sets/` | Mirrored update-set information |
 | `instances/<name>/documentation/` | Reviewed capability, process, and guide source |
 | `instances/<name>/docs/` | Generated MkDocs site and technical evidence |
-| `servicenow/` | Legacy engine's normalized artifact workspace |
 | `.snagentic/` | Ignored local state, indexes, diagnostics, browser evidence, and manifests |
 | `servicenow-remote/<name>` | Remote-only Git mirror branch |
 

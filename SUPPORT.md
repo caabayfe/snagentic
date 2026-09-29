@@ -17,8 +17,8 @@ Open an issue for reproducible non-security defects. Include the command, saniti
 output, platform versions, and whether execution used Docker or the approved direct
 Python override.
 
-Use `snagentic diagnostics` only for bounded, redacted local evidence. Review every
-diagnostic artifact before sharing it and never attach credentials, personal data,
-business records, or the contents of local credential files.
+Share only bounded, redacted local evidence from `.snagentic/` or UI traces. Review
+every artifact before sharing it and never attach credentials, personal data, business
+records, or the contents of local credential files.
 
 Security concerns must follow `SECURITY.md`.

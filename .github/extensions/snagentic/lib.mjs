@@ -1,6 +1,5 @@
 import { spawn } from "node:child_process";
 import { accessSync, constants as fsConstants, lstatSync, readFileSync, statSync } from "node:fs";
-import { realpath } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -124,84 +123,10 @@ const HOST_ENVIRONMENT_KEYS = Object.freeze([
   "windir",
   ...PROXY_TLS_ENVIRONMENT_KEYS,
 ]);
-const CONFIG_INSPECTION_SCRIPT = String.raw`
-import json
-import sys
-from pathlib import Path
-
-import yaml
-
-try:
-    config_path = Path(sys.argv[1])
-    requested_environment = sys.argv[2] or None
-    raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    if not isinstance(raw, dict):
-        raise ValueError("configuration must be a mapping")
-    environments = raw.get("environments")
-    if not isinstance(environments, dict):
-        raise ValueError("configuration environments must be a mapping")
-    selected = requested_environment or raw.get("default_environment")
-    if not isinstance(selected, str) or not selected:
-        raise ValueError("configuration must select an environment")
-    profile = environments.get(selected)
-    if not isinstance(profile, dict):
-        raise ValueError(f"unknown environment: {selected}")
-    kind = profile.get("kind")
-    if kind not in {"development", "test", "production"}:
-        raise ValueError(f"environment {selected} has an invalid kind")
-    auth = profile.get("auth") or {}
-    if not isinstance(auth, dict):
-        raise ValueError(f"environment {selected} auth must be a mapping")
-    mode = auth.get("mode", "bearer")
-    if mode == "bearer":
-        credential_names = [auth.get("token_env", "SNAGENTIC_TOKEN")]
-    elif mode == "basic":
-        credential_names = [auth.get("username_env"), auth.get("password_env")]
-    else:
-        raise ValueError(f"environment {selected} has an invalid auth mode")
-    if any(not isinstance(value, str) or not value for value in credential_names):
-        raise ValueError(f"environment {selected} has incomplete {mode} credential variables")
-    print(json.dumps({
-        "ok": True,
-        "environment": selected,
-        "kind": kind,
-        "credential_names": credential_names,
-    }))
-except Exception as exc:
-    print(json.dumps({"ok": False, "error": str(exc)}), file=sys.stderr)
-    raise SystemExit(2)
-`;
-const COMMON_KEYS = new Set(["config", "environment"]);
-const COMMAND_KEYS = Object.freeze({
-  inventory: COMMON_KEYS,
-  pull: COMMON_KEYS,
-  status: COMMON_KEYS,
-  diff: COMMON_KEYS,
-  validate: COMMON_KEYS,
-  "push-plan": COMMON_KEYS,
-  push: new Set([...COMMON_KEYS, "confirm"]),
-  diagnostics: new Set([...COMMON_KEYS, "minutes", "limit", "domain"]),
-  query: new Set([...COMMON_KEYS, "text", "domain", "artifactType"]),
-});
-
 function failure(message) {
   return {
     textResultForLlm: stringifyBounded({ ok: false, error: message }),
     resultType: "failure",
-  };
-}
-
-function rejected(message) {
-  return {
-    textResultForLlm: stringifyBounded({ ok: false, error: message }),
-    resultType: "rejected",
-  };
-}
-
-function denied(message) {
-  return {
-    textResultForLlm: stringifyBounded({ ok: false, error: message }),
-    resultType: "denied",
   };
 }
 
@@ -296,112 +221,6 @@ function sanitizeEnvironment(value) {
     maxLength: 64,
     pattern: /^[A-Za-z0-9][A-Za-z0-9._-]*$/,
   });
-}
-
-function sanitizeLabel(value, name) {
-  return validateOptionalString(value, name, {
-    maxLength: 128,
-    pattern: /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/,
-  });
-}
-
-function sanitizeInteger(value, name, minimum, maximum, fallback) {
-  const candidate = value === undefined ? fallback : value;
-  if (!Number.isInteger(candidate) || candidate < minimum || candidate > maximum) {
-    throw new TypeError(`${name} must be an integer from ${minimum} through ${maximum}`);
-  }
-  return candidate;
-}
-
-export function sanitizeArguments(command, args) {
-  if (!(command in COMMAND_KEYS)) {
-    throw new TypeError(`unsupported command: ${command}`);
-  }
-  if (!isPlainObject(args)) {
-    throw new TypeError("tool arguments must be an object");
-  }
-  const allowedKeys = COMMAND_KEYS[command];
-  for (const key of Object.keys(args)) {
-    if (!allowedKeys.has(key)) {
-      throw new TypeError(`unsupported argument for ${command}: ${key}`);
-    }
-  }
-
-  const sanitized = {};
-  const config = sanitizeConfig(args.config);
-  const environment = sanitizeEnvironment(args.environment);
-  if (config !== undefined) {
-    sanitized.config = config;
-  }
-  if (environment !== undefined) {
-    sanitized.environment = environment;
-  }
-
-  if (command === "push") {
-    if (environment === undefined) {
-      throw new TypeError("push requires an explicit environment");
-    }
-    if (args.confirm !== true) {
-      throw new TypeError("push requires confirm=true");
-    }
-    sanitized.confirm = true;
-  } else if (command === "diagnostics") {
-    sanitized.minutes = sanitizeInteger(args.minutes, "minutes", 1, 1_440, 60);
-    sanitized.limit = sanitizeInteger(args.limit, "limit", 1, 5_000, 500);
-    const domain = sanitizeLabel(args.domain, "domain");
-    if (domain !== undefined) {
-      sanitized.domain = domain;
-    }
-  } else if (command === "query") {
-    if (typeof args.text !== "string" || args.text.trim().length === 0 || args.text.length > 1_000) {
-      throw new TypeError("text must be a non-empty string of at most 1000 characters");
-    }
-    if (args.text.includes("\0")) {
-      throw new TypeError("text contains unsupported characters");
-    }
-    sanitized.text = args.text;
-    const domain = sanitizeLabel(args.domain, "domain");
-    const artifactType = sanitizeLabel(args.artifactType, "artifactType");
-    if (domain !== undefined) {
-      sanitized.domain = domain;
-    }
-    if (artifactType !== undefined) {
-      sanitized.artifactType = artifactType;
-    }
-  }
-  return sanitized;
-}
-
-export function buildCliArguments(command, args) {
-  const argv = ["--json"];
-  if (args.config !== undefined) {
-    argv.push("--config", args.config);
-  }
-  if (args.environment !== undefined) {
-    argv.push("--environment", args.environment);
-  }
-  argv.push(command);
-  if (command === "push") {
-    argv.push("--approve");
-  } else if (command === "diagnostics") {
-    argv.push("--minutes", String(args.minutes), "--limit", String(args.limit));
-    if (args.domain !== undefined) {
-      argv.push("--domain", args.domain);
-    }
-  } else if (command === "query") {
-    argv.push(args.text);
-    if (args.domain !== undefined) {
-      argv.push("--domain", args.domain);
-    }
-    if (args.artifactType !== undefined) {
-      argv.push("--artifact-type", args.artifactType);
-    }
-  }
-  return argv;
-}
-
-export function buildPythonArguments(command, args) {
-  return ["-m", "snagentic", ...buildCliArguments(command, args)];
 }
 
 // Reads only SNAGENTIC_PYTHON from ~/.config/snagentic/runtime.env (user-local, outside the
@@ -618,22 +437,6 @@ function environmentFlags(names) {
   return names.flatMap((name) => ["-e", name]);
 }
 
-export function buildDockerArguments(command, args, source = process.env, credentialNames = []) {
-  return [
-    "compose",
-    "run",
-    "--rm",
-    "-T",
-    ...environmentFlags(containerEnvironmentNames(source, credentialNames)),
-    "cli",
-    ...buildCliArguments(command, args),
-  ];
-}
-
-export function buildCliLauncher(command, args, source = process.env, credentialNames = []) {
-  return buildLauncherForArgv(buildCliArguments(command, args), source, credentialNames);
-}
-
 export function buildLauncherForArgv(cliArgv, source = process.env, credentialNames = []) {
   const runtime = selectRuntime(source);
   if (runtime.mode === "native") {
@@ -721,168 +524,6 @@ export function parseCliFailure(raw, fallback) {
   return failure(raw || fallback);
 }
 
-async function resolveSafeConfigPath(cwd, config = "config/snagentic.yaml") {
-  const root = await realpath(cwd);
-  const target = await realpath(path.resolve(root, config));
-  const relative = path.relative(root, target);
-  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
-    throw new TypeError("config must resolve inside the repository working directory");
-  }
-  return {
-    hostPath: target,
-    containerPath: path.posix.join("/workspace", ...relative.split(path.sep)),
-  };
-}
-
-export function buildInspectionLauncher(
-  configPaths,
-  environment,
-  source = process.env,
-) {
-  const runtime = selectRuntime(source);
-  if (runtime.mode === "native") {
-    return {
-      executable: runtime.executable,
-      argv: [
-        "--json",
-        "--config",
-        configPaths.hostPath,
-        ...(environment ? ["--environment", environment] : []),
-        "profile",
-      ],
-      environment: childEnvironment(source),
-      mode: "native",
-    };
-  }
-  if (runtime.mode === "python") {
-    return {
-      executable: runtime.executable,
-      argv: ["-c", CONFIG_INSPECTION_SCRIPT, configPaths.hostPath, environment ?? ""],
-      environment: childEnvironment(source),
-      mode: "python",
-    };
-  }
-  return {
-    executable: "docker",
-    argv: [
-      "compose",
-      "run",
-      "--rm",
-      "-T",
-      ...environmentFlags(containerEnvironmentNames(source)),
-      "--entrypoint",
-      "python",
-      "cli",
-      "-c",
-      CONFIG_INSPECTION_SCRIPT,
-      configPaths.containerPath,
-      environment ?? "",
-    ],
-    environment: childEnvironment(source),
-    mode: "docker",
-  };
-}
-
-export async function inspectConfigProfile(
-  args,
-  {
-    cwd = REPOSITORY_ROOT,
-    spawnImpl = spawn,
-    sourceEnvironment = process.env,
-    timeoutMs = DEFAULT_TIMEOUT_MS,
-  } = {},
-) {
-  const configPaths = await resolveSafeConfigPath(cwd, args.config);
-  const launcher = buildInspectionLauncher(configPaths, args.environment, sourceEnvironment);
-  return new Promise((resolve, reject) => {
-    const stdout = cappedCollector(MAX_OUTPUT_BYTES);
-    const stderr = cappedCollector(MAX_OUTPUT_BYTES);
-    let settled = false;
-    let timer;
-    let child;
-
-    const fail = (error) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      clearTimeout(timer);
-      reject(error);
-    };
-
-    try {
-      child = spawnImpl(launcher.executable, launcher.argv, {
-        cwd,
-        env: launcher.environment,
-        shell: false,
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-    } catch (error) {
-      fail(error);
-      return;
-    }
-
-    child.stdout?.setEncoding("utf8");
-    child.stderr?.setEncoding("utf8");
-    child.stdout?.on("data", (chunk) => stdout.append(chunk));
-    child.stderr?.on("data", (chunk) => stderr.append(chunk));
-    child.on("error", fail);
-    child.on("close", (code) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      clearTimeout(timer);
-      const standardOutput = stdout.value();
-      const standardError = stderr.value();
-      const raw = (code === 0 ? standardOutput.text : standardError.text).trim();
-      if (code !== 0) {
-        try {
-          const parsed = JSON.parse(raw);
-          if (isPlainObject(parsed) && typeof parsed.error === "string") {
-            reject(new Error(parsed.error));
-            return;
-          }
-        } catch {
-          // Use the bounded raw error below.
-        }
-        reject(new Error(raw || `configuration inspection exited with code ${String(code)}`));
-        return;
-      }
-      if (standardOutput.omittedBytes > 0) {
-        reject(new Error("configuration inspection output exceeded the extension limit"));
-        return;
-      }
-      try {
-        const parsed = JSON.parse(raw);
-        // The native `profile` command nests its summary under `result`.
-        const profile = isPlainObject(parsed?.result) ? parsed.result : parsed;
-        if (
-          !isPlainObject(parsed) ||
-          parsed.ok !== true ||
-          typeof profile.environment !== "string" ||
-          typeof profile.kind !== "string"
-        ) {
-          throw new TypeError("configuration inspection returned an invalid result");
-        }
-        resolve({
-          environment: profile.environment,
-          kind: profile.kind,
-          credentialNames: validateCredentialNames(profile.credential_names),
-        });
-      } catch (error) {
-        reject(error);
-      }
-    });
-
-    timer = setTimeout(() => {
-      child.kill("SIGTERM");
-      fail(new Error(`configuration inspection timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
-    timer.unref?.();
-  });
-}
-
 export function runPythonCli(
   command,
   args,
@@ -918,7 +559,7 @@ export function runPythonCli(
 
     try {
       launcher =
-        launcherOverride ?? buildCliLauncher(command, args, sourceEnvironment, credentialNames);
+        launcherOverride ?? buildLauncherForArgv(["--json", command], sourceEnvironment, credentialNames);
       child = spawnImpl(launcher.executable, launcher.argv, {
         cwd,
         env: launcher.environment,
@@ -998,91 +639,4 @@ export function runPythonCli(
     }, timeoutMs);
     timer.unref?.();
   });
-}
-
-export async function pushPermissionDecision(input, options = {}) {
-  if (input?.toolName !== "snagentic_push") {
-    return undefined;
-  }
-  let args;
-  try {
-    args = sanitizeArguments("push", input.toolArgs);
-  } catch (error) {
-    return {
-      permissionDecision: "deny",
-      permissionDecisionReason: error instanceof Error ? error.message : String(error),
-    };
-  }
-  const { inspectProfile = inspectConfigProfile, ...inspectionOptions } = options;
-  try {
-    const profile = await inspectProfile(args, {
-      ...inspectionOptions,
-    });
-    if (profile.kind !== "development") {
-      return {
-        permissionDecision: "deny",
-        permissionDecisionReason:
-          `snagentic push denied: environment ${profile.environment} is ${profile.kind}, ` +
-          "not development",
-      };
-    }
-  } catch (error) {
-    return {
-      permissionDecision: "deny",
-      permissionDecisionReason:
-        `snagentic could not verify the push environment: ` +
-        `${error instanceof Error ? error.message : String(error)}`,
-    };
-  }
-  return {
-    permissionDecision: "ask",
-    permissionDecisionReason:
-      "This will apply the current reviewed change plan to a writable development ServiceNow environment.",
-  };
-}
-
-export async function executeCommand(command, rawArgs, options = {}) {
-  let args;
-  try {
-    args = sanitizeArguments(command, rawArgs);
-  } catch (error) {
-    return rejected(error instanceof Error ? error.message : String(error));
-  }
-
-  const { inspectProfile = inspectConfigProfile, ...runtimeOptions } = options;
-  let profile;
-  try {
-    profile = await inspectProfile(args, runtimeOptions);
-  } catch (error) {
-    const message =
-      `configuration profile validation failed: ` +
-      `${error instanceof Error ? error.message : String(error)}`;
-    return command === "push" ? denied(message) : failure(message);
-  }
-
-  if (command === "push") {
-    if (profile.kind !== "development") {
-      return denied(
-        `push is denied for ${profile.kind} environment ${profile.environment}; ` +
-          "only development profiles are writable",
-      );
-    }
-    const validation = await runPythonCli("validate", args, {
-      ...runtimeOptions,
-      credentialNames: profile.credentialNames,
-    });
-    if (validation.resultType !== "success") {
-      return validation;
-    }
-    if (validation.data?.result?.write_allowed !== true) {
-      return denied("push is allowed only for a configured development environment");
-    }
-  }
-
-  const result = await runPythonCli(command, args, {
-    ...runtimeOptions,
-    credentialNames: profile.credentialNames,
-  });
-  delete result.data;
-  return result;
 }

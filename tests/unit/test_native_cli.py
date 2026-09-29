@@ -105,26 +105,12 @@ def test_auth_refuses_env_only_profiles_and_empty_values(
     assert empty["exit"] == 2 and "no value entered" in empty["error"]
 
 
-def test_auth_supports_legacy_configuration(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+def test_top_level_profile_is_replaced_by_instance_profile(
+    workspace: Path, capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.chdir(tmp_path)
-    config = tmp_path / "config" / "snagentic.yaml"
-    config.parent.mkdir()
-    config.write_text(
-        "default_environment: dev\nenvironments:\n  dev:\n    name: dev\n"
-        "    url: https://legacy-dev.example.com/\n    kind: development\n"
-        "    auth:\n      mode: bearer\n      token_env: SNAGENTIC_DEV_TOKEN\n",
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(native, "READ_VALUE", lambda prompt, secret: "bearer-value")
-    result = run(capsys, "auth", "login")["result"]
-    assert result == {"target": "environment dev", "host": "legacy-dev.example.com",
-                      "stored": ["SNAGENTIC_DEV_TOKEN"],
-                      "backend": "snagentic.credentials.MemoryBackend"}
-    profile = run(capsys, "profile")["result"]
-    assert profile == {"environment": "dev", "kind": "development",
-                       "credential_names": ["SNAGENTIC_DEV_TOKEN"], "store": "auto"}
+    with pytest.raises(SystemExit):
+        main(["--json", "profile"])
+    assert "invalid choice: 'profile'" in capsys.readouterr().err
 
 
 def test_instance_profile_lists_names_without_values(

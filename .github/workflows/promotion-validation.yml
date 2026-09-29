@@ -22,23 +22,6 @@ jobs:
           } >> "$GITHUB_ENV"
       - name: Build validation containers
         run: docker compose build test lint
-      - name: Validate ServiceNow JSON and committed change plans
-        run: |
-          docker compose run --rm --entrypoint python test -c '
-          import json
-          from pathlib import Path
-          from snagentic.changes import load_change_plan
-          import yaml
-
-          for path in sorted(Path("servicenow").rglob("*.json")):
-              json.loads(path.read_text(encoding="utf-8"))
-          for path in sorted(Path("servicenow").rglob("*.yaml")):
-              yaml.safe_load(path.read_text(encoding="utf-8"))
-          candidates = sorted(Path(".").glob("**/*.change-plan.json"))
-          for path in candidates:
-              load_change_plan(path)
-          print(f"validated ServiceNow JSON and {len(candidates)} change plan(s)")
-          '
       - name: Lint and type-check in Docker
         run: docker compose run --rm lint
       - name: Test with coverage in Docker

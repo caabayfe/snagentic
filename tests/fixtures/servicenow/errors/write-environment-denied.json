@@ -1,9 +1,0 @@
-{
-  "ok": false,
-  "correlation_id": "fixture-environment-001",
-  "error": {
-    "code": "write_environment_denied",
-    "message": "Writes are permitted only on an explicitly configured development instance",
-    "details": []
-  }
-}
