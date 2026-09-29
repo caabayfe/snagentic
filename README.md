@@ -27,7 +27,20 @@ runner. Credentials are kept in macOS Keychain or Windows Credential Manager. Se
 [docs/native-install.md](docs/native-install.md).
 
 ```bash
-snagentic copilot install     # Copilot CLI extension + ServiceNow agents/skills plugin
+# macOS
+curl -fsSL https://github.com/caabayfe/snagentic/releases/latest/download/install.sh | sh
+```
+
+```powershell
+# Windows (PowerShell)
+irm https://github.com/caabayfe/snagentic/releases/latest/download/install.ps1 | iex
+```
+
+The scripts check the download against `SHA256SUMS`, install for the current user, run
+`snagentic copilot install`, and work with unsigned builds. After installing:
+
+```bash
+snagentic auth login -i <instance>   # credentials into Keychain / Credential Manager
 snagentic ui install          # Playwright Chromium for UI recipes
 snagentic doctor --local      # verify executable, keychain, extension, and UI runtime
 ```

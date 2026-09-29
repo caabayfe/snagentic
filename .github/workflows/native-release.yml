@@ -2,7 +2,9 @@ name: Native release
 
 # Builds the Docker-free snagentic application bundle (CLI + Copilot extension + UI runner
 # + private Node.js) for macOS and Windows, smoke-tests the installed artifact outside the
-# checkout, and publishes signed archives on version tags.
+# checkout, and publishes archives on version tags. Tags are signed and notarized when the
+# signing secrets are configured; without them the release is published unsigned and
+# marked as such (install.sh / install.ps1 install unsigned builds without warnings).
 
 on:
   pull_request:
@@ -69,6 +71,8 @@ jobs:
             runner: windows-2025
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
+    # Signing secrets live in the protected `release` environment, used only for tags.
+    environment: ${{ startsWith(github.ref, 'refs/tags/v') && 'release' || '' }}
     env:
       RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
       HAS_MACOS_SIGNING: ${{ secrets.MACOS_CERTIFICATE != '' && secrets.MACOS_SIGNING_IDENTITY != '' }}
@@ -127,18 +131,41 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then exe="$PWD/dist/native/snagentic/snagentic.exe"; else exe="$PWD/dist/native/snagentic/snagentic"; fi
           "$exe" --json ui install
           "$exe" --json ui status | grep -q '"ready": true'
-      - name: Refuse to publish unsigned release artifacts
-        if: env.RELEASE == 'true'
+      - name: Install the bundle with install.sh
+        if: runner.os == 'macOS'
         shell: bash
         run: |
-          if [ "$RUNNER_OS" = "macOS" ] && [ "$HAS_MACOS_SIGNING" != "true" ]; then
-            echo "::error::macOS signing secrets are not configured for the release environment"; exit 1
+          set -euo pipefail
+          cat dist/native/*.sha256 > dist/native/SHA256SUMS
+          home="$(mktemp -d)"
+          HOME="$home" SNAGENTIC_DOWNLOAD_URL="$PWD/dist/native" SNAGENTIC_NO_COPILOT=1 \
+            sh packaging/install/install.sh
+          PATH=/usr/bin:/bin "$home/.local/bin/snagentic" --version
+          rm dist/native/SHA256SUMS
+      - name: Install the bundle with install.ps1
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-Content dist/native/*.sha256 | Set-Content -Encoding ascii dist/native/SHA256SUMS
+          $env:SNAGENTIC_HOME = Join-Path $env:RUNNER_TEMP 'snagentic-install'
+          $env:SNAGENTIC_DOWNLOAD_URL = (Resolve-Path dist/native).Path
+          $env:SNAGENTIC_NO_COPILOT = '1'
+          ./packaging/install/install.ps1
+          & (Join-Path $env:SNAGENTIC_HOME 'snagentic.exe') --version
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Remove-Item dist/native/SHA256SUMS
+      - name: Record signing status
+        shell: bash
+        run: |
+          signed=false
+          if [ "$RELEASE" = "true" ]; then
+            if [ "$RUNNER_OS" = "macOS" ] && [ "$HAS_MACOS_SIGNING" = "true" ]; then signed=true; fi
+            if [ "$RUNNER_OS" = "Windows" ] && [ "$HAS_WINDOWS_SIGNING" = "true" ]; then signed=true; fi
+            [ "$signed" = "true" ] || echo "::warning::signing secrets are not configured; publishing an unsigned ${{ matrix.target }} build"
           fi
-          if [ "$RUNNER_OS" = "Windows" ] && [ "$HAS_WINDOWS_SIGNING" != "true" ]; then
-            echo "::error::Windows signing secrets are not configured for the release environment"; exit 1
-          fi
+          echo "SIGNED=$signed" >> "$GITHUB_ENV"
       - name: Import macOS signing certificate
-        if: runner.os == 'macOS' && env.RELEASE == 'true'
+        if: runner.os == 'macOS' && env.SIGNED == 'true'
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -153,7 +180,7 @@ jobs:
           security list-keychain -d user -s "$keychain"
           rm -f "$RUNNER_TEMP/cert.p12"
       - name: Sign and notarize (macOS)
-        if: runner.os == 'macOS' && env.RELEASE == 'true'
+        if: runner.os == 'macOS' && env.SIGNED == 'true'
         env:
           MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
@@ -168,7 +195,7 @@ jobs:
           xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" --apple-id "$APPLE_ID" \
             --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_PASSWORD" --wait
       - name: Authenticode sign (Windows)
-        if: runner.os == 'Windows' && env.RELEASE == 'true'
+        if: runner.os == 'Windows' && env.SIGNED == 'true'
         shell: pwsh
         env:
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
@@ -181,7 +208,7 @@ jobs:
             ForEach-Object { & $signtool.FullName sign /f $pfx /p $env:WINDOWS_CERTIFICATE_PASSWORD /fd sha256 /tr http://timestamp.digicert.com /td sha256 $_.FullName }
           Remove-Item $pfx
       - name: Archive signed bundle
-        if: env.RELEASE == 'true'
+        if: env.SIGNED == 'true'
         shell: bash
         run: |
           rm -f dist/native/*.tar.gz dist/native/*.zip dist/native/*.sha256
@@ -194,6 +221,9 @@ jobs:
           name = f"snagentic-{build_native.version()}-{build_native.target_name()}"
           print(build_native.archive(out / "snagentic", out, name))
           PY
+      - name: Mark the artifact signed or unsigned
+        shell: bash
+        run: echo "$SIGNED" > "dist/native/${{ matrix.target }}.signed"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: snagentic-${{ matrix.target }}
@@ -201,6 +231,7 @@ jobs:
             dist/native/*.tar.gz
             dist/native/*.zip
             dist/native/*.sha256
+            dist/native/*.signed
           if-no-files-found: error
 
   publish:
@@ -216,20 +247,49 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
-      - name: Create GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          cat artifacts/*.sha256 > artifacts/SHA256SUMS
-          gh release create "$GITHUB_REF_NAME" artifacts/* --repo "$GITHUB_REPOSITORY" \
-            --title "snagentic $GITHUB_REF_NAME" --generate-notes
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: source
           sparse-checkout: |
             packaging/homebrew
+            packaging/install
             src/snagentic/__init__.py
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cat artifacts/*.sha256 > artifacts/SHA256SUMS
+          if grep -qvx true artifacts/*.signed; then signed=false; else signed=true; fi
+          echo "SIGNED=$signed" >> "$GITHUB_ENV"
+          title="snagentic $GITHUB_REF_NAME"
+          {
+            if [ "$signed" != true ]; then
+              title="$title (unsigned)"
+              echo "> **Unsigned build.** Install with the scripts below; they verify SHA256SUMS and avoid Gatekeeper and SmartScreen prompts."
+              echo
+            fi
+            echo "## Install"
+            echo
+            echo '**macOS**'
+            echo '```bash'
+            echo "curl -fsSL https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/install.sh | sh"
+            echo '```'
+            echo '**Windows (PowerShell)**'
+            echo '```powershell'
+            echo "irm https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/install.ps1 | iex"
+            echo '```'
+            echo 'Then: `snagentic auth login -i <instance>`, optionally `snagentic ui install`, and `snagentic doctor`.'
+            echo
+          } > notes.md
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "$title" \
+            --notes-file notes.md --generate-notes \
+            artifacts/*.tar.gz artifacts/*.zip artifacts/SHA256SUMS \
+            source/packaging/install/install.sh source/packaging/install/install.ps1
+      # Homebrew downloads casks with the quarantine attribute, so only signed and notarized
+      # builds are offered through the cask.
       - name: Render Homebrew cask
+        if: env.SIGNED == 'true'
         run: |
           python3 source/packaging/homebrew/render_cask.py --sums artifacts/SHA256SUMS \
             --version "${GITHUB_REF_NAME#v}" --repository "$GITHUB_REPOSITORY" \
@@ -241,7 +301,7 @@ jobs:
       # HOMEBREW_TAP (OWNER/homebrew-snagentic) and the release-environment secret
       # HOMEBREW_TAP_TOKEN (fine-grained token with contents:write on that repository).
       - name: Publish cask to the Homebrew tap
-        if: vars.HOMEBREW_TAP != ''
+        if: vars.HOMEBREW_TAP != '' && env.SIGNED == 'true'
         env:
           TAP: ${{ vars.HOMEBREW_TAP }}
           TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
