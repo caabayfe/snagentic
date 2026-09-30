@@ -6,10 +6,19 @@ name: dev
 url: https://your-development-instance.service-now.com/
 kind: development            # development | test | production (only development is writable)
 auth:
-  mode: basic                # basic | bearer
+  mode: basic                # basic | bearer | oauth
   username_env: SNAGENTIC_DEV_USERNAME
   password_env: SNAGENTIC_DEV_PASSWORD
   store: keychain            # keychain | auto (keychain, then environment) | env (legacy)
+# Managed OAuth client credentials alternative:
+# auth:
+#   mode: oauth
+#   oauth_grant_type: client_credentials  # client_credentials | refresh_token
+#   client_id_env: SNAGENTIC_DEV_CLIENT_ID
+#   client_secret_env: SNAGENTIC_DEV_CLIENT_SECRET
+#   # refresh_token_env: SNAGENTIC_DEV_REFRESH_TOKEN  # required for refresh_token
+#   token_endpoint: oauth_token.do         # same-instance relative path only
+#   store: keychain
 page_size: 500
 sync:
   include_baseline: false    # true = read everything through sys_metadata (slow); prefer baseline_classes

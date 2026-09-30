@@ -45,7 +45,7 @@ from snagentic.instance.config import InstanceRegistry
 try:
     config = InstanceRegistry(Path.cwd()).load(sys.argv[1] or None)
     auth = config.auth
-    names = [auth.token_env] if auth.mode == "bearer" else [auth.username_env, auth.password_env]
+    names = auth.credential_names()
     names += [config.ui.username_env, config.ui.password_env]
     print(json.dumps({
         "ok": True,

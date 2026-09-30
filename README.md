@@ -62,6 +62,19 @@ snagentic instance -i dev scan --confirm      # ServiceNow Instance Scan of the 
 snagentic instance -i dev promote --confirm   # complete update sets + manifest
 ```
 
+For managed OAuth instead of basic authentication:
+
+```bash
+snagentic instance add dev --url https://dev.service-now.com/ --kind development \
+  --auth oauth --oauth-grant client_credentials --credential-store keychain
+snagentic auth login -i dev
+```
+
+snagentic obtains access tokens from the same instance's `oauth_token.do`, reuses them
+until shortly before expiry, and renews once after an API `401`. A pre-provisioned
+refresh token is also supported with `--oauth-grant refresh_token`. Static externally
+managed access tokens remain available through `auth.mode: bearer`.
+
 Other commands: `status`, `review`, `review-record`, `scan-results`, `update-sets`, `collisions`, `activity`, `index`, `search`,
 `refs`, `ops-list`, `ops-run`, `complete`, `ui list`, and `ui run`. Contributors can also run them through Docker with
 `docker compose run --rm cli instance ...`. See [docs/architecture.md](docs/architecture.md)
@@ -134,8 +147,10 @@ containers; set `auth.store: env` or `SNAGENTIC_CREDENTIAL_STORE=env`. Native bu
 read only the keychain unless you opt in. Do not add credentials to repository files.
 
 Instance profiles name their own variables (`SNAGENTIC_<NAME>_USERNAME`,
-`SNAGENTIC_<NAME>_PASSWORD`, or `SNAGENTIC_<NAME>_TOKEN`). UI recipes need a local
-(non-SSO) user; set `ui.username_env`/`ui.password_env` when the API uses a bearer token.
+`SNAGENTIC_<NAME>_PASSWORD`, `SNAGENTIC_<NAME>_TOKEN`,
+`SNAGENTIC_<NAME>_CLIENT_ID`, `SNAGENTIC_<NAME>_CLIENT_SECRET`, or
+`SNAGENTIC_<NAME>_REFRESH_TOKEN`). UI recipes need a local (non-SSO) user; set
+`ui.username_env`/`ui.password_env` when the API uses bearer or managed OAuth.
 If extension environment access is denied, remote commands may use a user-local
 `~/.config/snagentic/<instance>.env`; protect it with mode `0600` on macOS and Linux.
 `~/.config/snagentic/runtime.env` may contain only the approved `SNAGENTIC_PYTHON`

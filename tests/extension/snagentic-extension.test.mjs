@@ -207,8 +207,16 @@ test("instance inspection uses the cli container by default", () => {
 });
 
 test("rejects credential variables outside the reviewed static allowlist", () => {
-  assert.deepEqual(validateCredentialNames(["SNAGENTIC_DEV_TOKEN"]), [
+  assert.deepEqual(validateCredentialNames([
     "SNAGENTIC_DEV_TOKEN",
+    "SNAGENTIC_DEV_CLIENT_ID",
+    "SNAGENTIC_DEV_CLIENT_SECRET",
+    "SNAGENTIC_DEV_REFRESH_TOKEN",
+  ]), [
+    "SNAGENTIC_DEV_TOKEN",
+    "SNAGENTIC_DEV_CLIENT_ID",
+    "SNAGENTIC_DEV_CLIENT_SECRET",
+    "SNAGENTIC_DEV_REFRESH_TOKEN",
   ]);
   assert.throws(
     () => validateCredentialNames(["TEAM_PRIVATE_SERVICENOW_TOKEN"]),

@@ -150,6 +150,21 @@ snagentic auth login -i dev          # prompts; the password is not echoed
 snagentic auth status -i dev         # shows only whether each value is stored
 ```
 
+For unattended OAuth client credentials:
+
+```bash
+snagentic instance add dev --url https://dev.service-now.com/ --kind development \
+  --auth oauth --oauth-grant client_credentials --credential-store keychain
+snagentic auth login -i dev          # client ID is visible; client secret is hidden
+```
+
+The default token endpoint is the same instance's `oauth_token.do`. Absolute or
+cross-host token endpoints are rejected so a repository change cannot redirect stored
+client credentials to another host. `--oauth-grant refresh_token` adds a
+`SNAGENTIC_<NAME>_REFRESH_TOKEN` credential; rotated refresh tokens are written back to
+the keychain. With `auth.store: env`, rotated values last only for the current process
+and must be updated by the external secret-management workflow.
+
 For an instance profile, the keychain service is `snagentic`, and the account is
 `<instance host>/<VARIABLE NAME>`. For example:
 `dev.service-now.com/SNAGENTIC_DEV_PASSWORD`. Because the host is part of the account
@@ -176,6 +191,12 @@ Credentials are retrieved in-process immediately before the HTTP client is creat
 UI recipes, they are passed to the Node runner over its private stdin pipe. They are not
 put in command arguments, the child-process environment, `request.json`, traces,
 screenshots, or results.
+
+Managed OAuth access tokens are acquired lazily, cached only in process memory, renewed
+shortly before their reported expiry, and refreshed once after an API `401`. Static
+bearer tokens remain supported for organizations that obtain and rotate access tokens
+outside snagentic. UI recipes do not perform OAuth or SSO browser login; configure
+`ui.username_env` and `ui.password_env` for a local non-SSO UI account.
 
 ## Copilot CLI extension
 

@@ -4,6 +4,9 @@
 
 ### Added
 
+- Managed ServiceNow OAuth authentication using client credentials or a pre-provisioned
+  refresh token. Access tokens are cached only in memory, renewed before expiry and
+  retried once after an API `401`; rotated refresh tokens are saved back to the keychain.
 - `install.sh` (macOS) and `install.ps1` (Windows): one-line, per-user installers that
   verify `SHA256SUMS`, work with unsigned builds and run `snagentic copilot install`.
   Each release attaches both scripts.

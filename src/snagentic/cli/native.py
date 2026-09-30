@@ -180,7 +180,9 @@ def auth_status(target: CredentialTarget) -> dict[str, Any]:
 
 
 def _is_username(name: str) -> bool:
-    return name.upper().endswith("USERNAME") or name.upper().endswith("_USER")
+    upper = name.upper()
+    return (upper.endswith("USERNAME") or upper.endswith("_USER")
+            or upper.endswith("CLIENT_ID"))
 
 
 def _read(prompt: str, *, secret: bool) -> str:

@@ -152,8 +152,28 @@ selected profile. Password values are not added to command arguments or
 repository files. OAuth bearer authentication remains recommended for
 production use.
 
+Managed OAuth is supported with a same-instance token endpoint:
+
+```yaml
+auth:
+  mode: oauth
+  oauth_grant_type: client_credentials
+  client_id_env: SNAGENTIC_DEV_CLIENT_ID
+  client_secret_env: SNAGENTIC_DEV_CLIENT_SECRET
+  token_endpoint: oauth_token.do
+  store: keychain
+```
+
+Use `oauth_grant_type: refresh_token` plus
+`refresh_token_env: SNAGENTIC_DEV_REFRESH_TOKEN` when an authorization process has
+already provisioned a refresh token. The CLI acquires and renews access tokens; the
+extension receives only credential names. OAuth browser authorization and SSO UI login
+are outside the extension runtime.
+
 Instance profiles may also name credentials matching
-`SNAGENTIC_<NAME>_TOKEN`, `SNAGENTIC_<NAME>_USERNAME`, or `SNAGENTIC_<NAME>_PASSWORD`.
+`SNAGENTIC_<NAME>_TOKEN`, `SNAGENTIC_<NAME>_USERNAME`,
+`SNAGENTIC_<NAME>_PASSWORD`, `SNAGENTIC_<NAME>_CLIENT_ID`,
+`SNAGENTIC_<NAME>_CLIENT_SECRET`, or `SNAGENTIC_<NAME>_REFRESH_TOKEN`.
 The extension discovers these names from `instances/*/instance.yaml` at startup and
 rejects any other variable name, so a profile cannot request unrelated host secrets.
 

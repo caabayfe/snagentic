@@ -133,6 +133,28 @@ def test_instance_add_records_store_and_next_step(
     assert "store: keychain" in (tmp_path / "instances/acme/instance.yaml").read_text()
 
 
+def test_instance_add_scaffolds_oauth_client_credentials(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    added = run(
+        capsys, "instance", "add", "acme", "--url", "https://acme.example.com/",
+        "--kind", "development", "--auth", "oauth", "--credential-store", "keychain",
+    )["result"]
+    config = (tmp_path / "instances/acme/instance.yaml").read_text()
+    assert added["next_step"] == "snagentic auth login -i acme"
+    assert "mode: oauth" in config
+    assert "oauth_grant_type: client_credentials" in config
+    assert "client_id_env: SNAGENTIC_ACME_CLIENT_ID" in config
+    assert "client_secret_env: SNAGENTIC_ACME_CLIENT_SECRET" in config
+    assert "token_endpoint: oauth_token.do" in config
+    profile = run(capsys, "instance", "-i", "acme", "profile")["result"]
+    assert profile["credential_names"] == [
+        "SNAGENTIC_ACME_CLIENT_ID",
+        "SNAGENTIC_ACME_CLIENT_SECRET",
+    ]
+
+
 def test_copilot_install_status_upgrade_and_uninstall(
     tmp_path: Path, capsys: pytest.CaptureFixture[str],
 ) -> None:

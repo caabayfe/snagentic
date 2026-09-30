@@ -378,21 +378,34 @@ class InstanceRegistry:
         url: str,
         kind: str,
         auth_mode: str = "basic",
+        oauth_grant: str = "client_credentials",
         store: str = "auto",
     ) -> Path:
         paths = self.paths(name)
         if paths.config_file.exists():
             raise ConfigurationError(f"instance already exists: {name}")
         prefix = "SNAGENTIC_" + re.sub(r"[^A-Z0-9]", "_", name.upper())
-        auth: dict[str, str] = (
-            {"mode": "bearer", "token_env": f"{prefix}_TOKEN"}
-            if auth_mode == "bearer"
-            else {
+        if auth_mode == "bearer":
+            auth: dict[str, str] = {
+                "mode": "bearer",
+                "token_env": f"{prefix}_TOKEN",
+            }
+        elif auth_mode == "oauth":
+            auth = {
+                "mode": "oauth",
+                "oauth_grant_type": oauth_grant,
+                "client_id_env": f"{prefix}_CLIENT_ID",
+                "client_secret_env": f"{prefix}_CLIENT_SECRET",
+                "token_endpoint": "oauth_token.do",
+            }
+            if oauth_grant == "refresh_token":
+                auth["refresh_token_env"] = f"{prefix}_REFRESH_TOKEN"
+        else:
+            auth = {
                 "mode": "basic",
                 "username_env": f"{prefix}_USERNAME",
                 "password_env": f"{prefix}_PASSWORD",
             }
-        )
         if store != "auto":
             auth["store"] = store
         raw = {"name": name, "url": url, "kind": kind, "auth": auth}

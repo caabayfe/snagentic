@@ -10,11 +10,129 @@ from typing import Any
 import httpx
 
 from snagentic import __version__
-from snagentic.config import EnvironmentConfig, resolve_credentials
+from snagentic.config import EnvironmentConfig, OAuthCredentials, resolve_credentials
+from snagentic.credentials import CredentialStoreUnavailable, effective_store, store_secret
 from snagentic.errors import ConfigurationError, ServiceNowError
 
 TABLE_PREFIX = "api/now/table/"
 RETRY_STATUS = frozenset({429, 502, 503, 504})
+TOKEN_EXPIRY_SKEW_SECONDS = 30.0
+
+
+class OAuthTokenProvider:
+    def __init__(
+        self,
+        config: EnvironmentConfig,
+        credentials: OAuthCredentials,
+        *,
+        transport: httpx.BaseTransport | None = None,
+        sleep: Any = time.sleep,
+        clock: Any = time.monotonic,
+    ) -> None:
+        self.config = config
+        self.credentials = credentials
+        self._sleep = sleep
+        self._clock = clock
+        self._access_token: str | None = None
+        self._expires_at: float | None = None
+        self._refresh_token = credentials.refresh_token
+        self._client = httpx.Client(
+            base_url=str(config.url).rstrip("/") + "/",
+            headers={
+                "Accept": "application/json",
+                "User-Agent": f"snagentic/{__version__}",
+            },
+            timeout=config.timeout_seconds,
+            verify=config.verify_tls,
+            transport=transport,
+        )
+
+    def close(self) -> None:
+        self._client.close()
+
+    def token(self, *, force: bool = False) -> str:
+        if (
+            not force
+            and self._access_token
+            and (self._expires_at is None or self._clock() < self._expires_at)
+        ):
+            return self._access_token
+        payload = {
+            "grant_type": self.credentials.grant_type,
+            "client_id": self.credentials.client_id,
+            "client_secret": self.credentials.client_secret,
+        }
+        if self.credentials.grant_type == "refresh_token":
+            if not self._refresh_token:
+                raise ConfigurationError("OAuth refresh token is unavailable")
+            payload["refresh_token"] = self._refresh_token
+        response = self._request_token(payload)
+        try:
+            result = response.json()
+        except ValueError as exc:
+            raise ServiceNowError("OAuth token endpoint returned invalid JSON") from exc
+        if not isinstance(result, dict):
+            raise ServiceNowError("OAuth token endpoint returned a non-object response")
+        access_token = result.get("access_token")
+        if not isinstance(access_token, str) or not access_token:
+            raise ServiceNowError("OAuth token endpoint response has no access_token")
+        token_type = result.get("token_type")
+        if token_type is not None and (
+            not isinstance(token_type, str) or token_type.lower() != "bearer"
+        ):
+            raise ServiceNowError("OAuth token endpoint returned an unsupported token_type")
+        self._access_token = access_token
+        self._expires_at = _token_expiry(result.get("expires_in"), self._clock())
+        self._update_refresh_token(result.get("refresh_token"))
+        return access_token
+
+    def _request_token(self, payload: Mapping[str, str]) -> httpx.Response:
+        for attempt in range(4):
+            try:
+                response = self._client.post(self.credentials.token_endpoint, data=payload)
+            except httpx.HTTPError as exc:
+                if attempt >= 3:
+                    raise ServiceNowError(f"OAuth token request failed: {exc}") from exc
+                self._sleep(min(2**attempt, 8))
+                continue
+            if response.status_code in RETRY_STATUS and attempt < 3:
+                retry_after = response.headers.get("Retry-After", "")
+                self._sleep(float(retry_after) if retry_after.isdigit() else min(2**attempt, 8))
+                continue
+            if response.is_error:
+                raise ServiceNowError(
+                    f"OAuth token endpoint returned {response.status_code}",
+                    status_code=response.status_code,
+                )
+            return response
+        raise AssertionError("OAuth token retry loop exhausted")
+
+    def _update_refresh_token(self, value: object) -> None:
+        if (
+            not isinstance(value, str)
+            or not value
+            or value == self._refresh_token
+            or not self.credentials.refresh_token_name
+        ):
+            return
+        self._refresh_token = value
+        if self.credentials.store == "env":
+            return
+        try:
+            store_secret(self.config.url, self.credentials.refresh_token_name, value)
+        except CredentialStoreUnavailable:
+            if effective_store(self.credentials.store) == "keychain":
+                raise
+
+
+def _token_expiry(value: object, now: float) -> float | None:
+    if isinstance(value, bool):
+        return None
+    try:
+        seconds = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return now + max(0.0, seconds - TOKEN_EXPIRY_SKEW_SECONDS)
 
 
 class TableApiClient:
@@ -34,6 +152,7 @@ class TableApiClient:
         self.config = config
         self._sleep = sleep
         mode, credentials = resolve_credentials(config)
+        self._oauth: OAuthTokenProvider | None = None
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
@@ -42,6 +161,10 @@ class TableApiClient:
         auth: httpx.Auth | None = None
         if mode == "bearer":
             headers["Authorization"] = "Bearer " + str(credentials)
+        elif mode == "oauth":
+            if not isinstance(credentials, OAuthCredentials):
+                raise ConfigurationError("OAuth credentials are incomplete")
+            self._oauth = OAuthTokenProvider(config, credentials, transport=transport, sleep=sleep)
         else:
             if not isinstance(credentials, tuple):
                 raise ConfigurationError("basic authentication credentials are incomplete")
@@ -63,6 +186,8 @@ class TableApiClient:
 
     def close(self) -> None:
         self._client.close()
+        if self._oauth is not None:
+            self._oauth.close()
 
     def call(
         self,
@@ -74,17 +199,32 @@ class TableApiClient:
         retries: int = 3,
         allow_missing: bool = False,
     ) -> dict[str, Any] | None:
-        for attempt in range(retries + 1):
+        oauth_renewed = False
+        attempt = 0
+        while True:
             try:
-                response = self._client.request(method, path, params=params, json=json)
+                headers = (
+                    {"Authorization": "Bearer " + self._oauth.token()}
+                    if self._oauth is not None
+                    else None
+                )
+                response = self._client.request(
+                    method, path, params=params, json=json, headers=headers
+                )
             except httpx.HTTPError as exc:
                 if attempt >= retries:
                     raise ServiceNowError(f"{method} {path} failed: {exc}") from exc
                 self._sleep(min(2**attempt, 8))
+                attempt += 1
+                continue
+            if response.status_code == 401 and self._oauth is not None and not oauth_renewed:
+                self._oauth.token(force=True)
+                oauth_renewed = True
                 continue
             if response.status_code in RETRY_STATUS and attempt < retries:
                 retry_after = response.headers.get("Retry-After", "")
                 self._sleep(float(retry_after) if retry_after.isdigit() else min(2**attempt, 8))
+                attempt += 1
                 continue
             if allow_missing and response.status_code in {400, 403, 404}:
                 return None
@@ -92,8 +232,7 @@ class TableApiClient:
                 return {}
             if response.is_error:
                 raise ServiceNowError(
-                    f"{method} {path} returned {response.status_code}: "
-                    f"{_error_message(response)}",
+                    f"{method} {path} returned {response.status_code}: {_error_message(response)}",
                     status_code=response.status_code,
                 )
             try:

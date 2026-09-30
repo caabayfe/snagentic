@@ -32,7 +32,9 @@ def add_instance_parser(subparsers: Any) -> None:
     add.add_argument("name")
     add.add_argument("--url", required=True)
     add.add_argument("--kind", required=True, choices=("development", "test", "production"))
-    add.add_argument("--auth", choices=("basic", "bearer"), default="basic")
+    add.add_argument("--auth", choices=("basic", "bearer", "oauth"), default="basic")
+    add.add_argument("--oauth-grant", choices=("client_credentials", "refresh_token"),
+                     default="client_credentials", help="OAuth grant used when --auth oauth")
     add.add_argument("--credential-store", choices=("auto", "keychain", "env"),
                      default="auto", help="where credential values are read from")
     commands.add_parser("list", help="list configured instances")
@@ -205,7 +207,7 @@ def run_instance(args: argparse.Namespace, root: Path) -> Any:
     command = args.instance_command
     if command == "add":
         path = registry.add(args.name, url=args.url, kind=args.kind, auth_mode=args.auth,
-                            store=args.credential_store)
+                            oauth_grant=args.oauth_grant, store=args.credential_store)
         return {"instance": args.name, "config": _relative(path, root),
                 "next_step": f"snagentic auth login -i {args.name}"}
     if command == "list":

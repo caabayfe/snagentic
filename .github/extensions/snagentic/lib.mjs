@@ -41,7 +41,8 @@ export const APPROVED_CREDENTIAL_ENVIRONMENT_VARIABLES = Object.freeze([
 
 // Instance profiles (instances/<name>/instance.yaml) may name credentials that follow
 // this reviewed convention only; arbitrary host secrets can never be requested.
-export const INSTANCE_CREDENTIAL_PATTERN = /^SNAGENTIC_[A-Z0-9_]{1,64}_(TOKEN|USERNAME|PASSWORD)$/u;
+export const INSTANCE_CREDENTIAL_PATTERN =
+  /^SNAGENTIC_[A-Z0-9_]{1,64}_(TOKEN|USERNAME|PASSWORD|CLIENT_ID|CLIENT_SECRET|REFRESH_TOKEN)$/u;
 
 export const RUNTIME_ENVIRONMENT_VARIABLES = Object.freeze([
   "SNAGENTIC_EXECUTABLE",
