@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.3.0
+
 ### Added
 
 - Managed ServiceNow OAuth authentication using client credentials or a pre-provisioned
