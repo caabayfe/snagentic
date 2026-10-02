@@ -10,6 +10,7 @@ from typing import Any
 
 from snagentic import __version__
 from snagentic.cli.instance import add_instance_parser, run_instance
+from snagentic.cli.mcpserver import add_mcp_parser, mcp_serve, run_mcp
 from snagentic.cli.native import add_native_parsers, local_report, run_native
 from snagentic.errors import SnagenticError
 
@@ -28,6 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_instance_parser(subparsers)
     add_native_parsers(subparsers)
+    add_mcp_parser(subparsers)
     return parser
 
 
@@ -40,6 +42,15 @@ def main(argv: list[str] | None = None) -> None:
         if decision is not None:
             print(json.dumps(decision))
         return
+    if args.command == "mcp" and args.mcp_command == "serve":
+        # stdout is reserved for the MCP JSON-RPC transport once the child process
+        # starts: on success we exit silently with its code, and on a setup failure
+        # (before anything touches stdout) we still report the usual JSON error.
+        try:
+            raise SystemExit(mcp_serve(Path.cwd()))
+        except (SnagenticError, ValueError) as exc:
+            _emit({"ok": False, "error": str(exc)}, json_output=args.json_output, error=True)
+            raise SystemExit(2) from exc
     try:
         result = run(args)
     except (SnagenticError, ValueError) as exc:
@@ -56,6 +67,8 @@ def run(args: argparse.Namespace) -> Any:
         return run_native(args, root)
     if args.command == "doctor":
         return local_report(root)
+    if args.command == "mcp":
+        return run_mcp(args, root)
     raise AssertionError(f"unhandled command: {args.command}")
 
 

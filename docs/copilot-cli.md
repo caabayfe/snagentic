@@ -89,6 +89,50 @@ variable from `~/.config/snagentic/runtime.env` (or the equivalent
 normal executable-name/path validation. On macOS and Linux the file must be a
 regular file owned by the current user with mode `0600`.
 
+## Model Context Protocol (MCP) server
+
+`.github/extensions/snagentic/mcp-server.mjs` exposes the exact same tool catalogue
+(`instanceTools` from `instance.mjs`), JSON Schemas, and safety gates as the Copilot
+CLI extension above, over the standard [Model Context
+Protocol](https://modelcontextprotocol.io/) instead of Copilot's proprietary extension
+API. Any MCP-compatible client (not only Copilot CLI) can connect to it over stdio and
+get identical, centrally enforced behaviour: development-only writes, `confirm: true`
+gates, OS-keychain credentials, and argv-only process launches.
+
+Run it with:
+
+```
+snagentic mcp serve
+```
+
+This resolves the bundled Node runtime and `mcp-server.mjs` (via the same asset
+resolution used for the Copilot extension) and runs the server over stdio, so it is
+ready to be pointed at from any MCP client configuration, for example:
+
+```json
+{
+  "mcpServers": {
+    "snagentic": {
+      "command": "snagentic",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+```
+
+`snagentic mcp status` (and `snagentic doctor --local`'s `mcp` section) report whether
+the Node runtime, the server script, and its `@modelcontextprotocol/sdk` dependency are
+all present and ready, without starting the server.
+
+In a source checkout, the MCP server's dependency is installed with:
+
+```
+cd .github/extensions/snagentic && npm install
+```
+
+Native and wheel/release installs bundle `node_modules` for the server automatically;
+only contributors working from a git checkout need this step.
+
 ## Credentials
 
 With the native runtime, the extension requests only the non-secret runtime variables

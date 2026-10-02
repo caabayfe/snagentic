@@ -14,6 +14,7 @@ build/
 .snagentic/
 config/snagentic.yaml
 ui/node_modules/
+.github/extensions/snagentic/node_modules/
 
 # macOS Finder metadata
 .DS_Store

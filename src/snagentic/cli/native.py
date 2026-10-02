@@ -218,7 +218,13 @@ def _self_executable() -> Path:
 
 
 def _extension_files(source: Path) -> list[Path]:
-    return sorted(path for path in source.glob("*.mjs") if path.is_file())
+    # mcp-server.mjs is not part of the Copilot CLI extension surface: it is a
+    # separate stdio entry point resolved via `snagentic mcp serve`, not loaded by
+    # the Copilot host, and depends on node_modules that this install does not copy.
+    return sorted(
+        path for path in source.glob("*.mjs")
+        if path.is_file() and path.name != "mcp-server.mjs"
+    )
 
 
 def _digest(files: list[Path]) -> str:
@@ -635,4 +641,11 @@ def local_report(root: Path) -> dict[str, Any]:
         "git": shutil.which("git"),
         "copilot_extension": copilot_status(None, root),
         "ui": ui_status(root),
+        "mcp": _mcp_status(root),
     }
+
+
+def _mcp_status(root: Path) -> dict[str, Any]:
+    from snagentic.cli.mcpserver import mcp_status
+
+    return mcp_status(root)

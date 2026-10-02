@@ -224,6 +224,40 @@ invents or silently rewrites those claims.
   development instance and confirmation; `--dry-run` shows the steps. Selectors are
   unverified until a recipe lists the releases it was tested on (`verified_releases`).
 
+### Client surfaces: Copilot CLI extension and MCP server
+
+The Python CLI (`src/snagentic/`) is the single engine described above; it is never
+reimplemented client-side. Two thin, stateless front ends shell out to it over argv
+(never a shell string) and share one tool catalogue so their behaviour is identical:
+
+- **Copilot CLI extension** (`.github/extensions/snagentic/extension.mjs`) implements
+  Copilot's proprietary extension API.
+- **MCP server** (`.github/extensions/snagentic/mcp-server.mjs`, run via
+  `snagentic mcp serve`) implements the standard [Model Context
+  Protocol](https://modelcontextprotocol.io/) stdio transport, so any MCP-compatible
+  client (not only Copilot CLI) can use the same tools.
+
+Both import the tool catalogue (names, JSON Schemas, dispatch) from
+`.github/extensions/snagentic/instance.mjs` as `instanceTools`, so a tool added once is
+available identically from both surfaces: same inputs, same development-only/
+`confirm: true` write gates, same underlying CLI invocation. Neither front end holds
+business logic, authorization decisions, or direct ServiceNow access; they only
+translate a client protocol call into a `snagentic instance ...` (or native-binary
+equivalent) invocation and return its JSON result.
+
+`snagentic mcp serve` resolves the same runtime each front end would otherwise need on
+`PATH` (native binary, bundled Python venv, or Docker fallback) and forwards it
+explicitly to the Node child process via `SNAGENTIC_EXECUTABLE`/`SNAGENTIC_PYTHON`,
+unless the caller already set one of those or `SNAGENTIC_RUNTIME`. This matters because
+an MCP client commonly launches `snagentic` by absolute path with a minimal inherited
+environment, where `PATH` does not resolve `snagentic`; without forwarding, every tool
+call would silently fall back to the Docker runtime instead of the native binary already
+running the server. `snagentic mcp status` (and `doctor --local`'s `mcp` section) report
+whether the Node runtime, `mcp-server.mjs`, and its `@modelcontextprotocol/sdk`
+dependency are present and ready, without starting the server. Native and release
+installs bundle the server's `node_modules`; only a source checkout needs
+`npm install` in `.github/extensions/snagentic/`.
+
 ### Live instance findings
 
 Verified against an Australia personal developer instance:

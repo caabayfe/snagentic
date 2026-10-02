@@ -65,7 +65,8 @@ def test_archive_writes_checksum(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 
 
 def test_stage_extension_copies_only_modules(tmp_path: Path) -> None:
-    staged = build.stage_extension(tmp_path)  # type: ignore[attr-defined]
+    staged = build.stage_extension(tmp_path, Path("node"), install=False)  # type: ignore[attr-defined]
     assert sorted(path.name for path in staged.iterdir()) == [
-        "extension.mjs", "instance.mjs", "lib.mjs",
+        "extension.mjs", "instance.mjs", "lib.mjs", "mcp-server.mjs",
+        "package-lock.json", "package.json",
     ]

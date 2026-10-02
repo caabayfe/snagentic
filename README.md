@@ -13,6 +13,10 @@ Copilot CLI can:
 5. **Operate it**: supported CI/CD API operations, and Playwright recipes for the few
    UI-only tasks.
 
+The same tools are available to any MCP-compatible client, not only Copilot CLI, via a
+standards-compliant Model Context Protocol server (`snagentic mcp serve`); see
+[docs/copilot-cli.md](docs/copilot-cli.md#model-context-protocol-mcp-server).
+
 For a non-technical explanation, product capabilities, use cases, safeguards, and a
 ready-to-use demonstration script, see the
 [product guide](docs/product-overview.md). For formal requirements, detailed data flows,

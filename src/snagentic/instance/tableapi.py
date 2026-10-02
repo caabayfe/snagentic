@@ -349,9 +349,28 @@ def _error_message(response: httpx.Response) -> str:
         payload = response.json()
     except ValueError:
         return "no error body"
-    error = payload.get("error") if isinstance(payload, dict) else None
+    if not isinstance(payload, dict):
+        return "unknown error"
+    error = payload.get("error")
     if isinstance(error, dict):
-        return str(error.get("message") or error.get("detail") or "unknown error")[:300]
+        message = error.get("message") or error.get("detail")
+        if message:
+            return str(message)[:300]
+    # The sn_cicd (CI/CD) API reports failures inside "result" instead of the
+    # Table API's top-level "error" object, e.g. {"result": {"status": "3",
+    # "status_message": "Missing parameter: ...", "error": ""}}. "error" there is
+    # often an empty string rather than absent, so check status_message first.
+    result = payload.get("result")
+    if isinstance(result, dict):
+        message = (
+            result.get("status_message")
+            or (result.get("error") if isinstance(result.get("error"), str) else None)
+            or result.get("error_message")
+        )
+        if message:
+            return str(message)[:300]
+    if isinstance(error, str) and error:
+        return error[:300]
     return "unknown error"
 
 

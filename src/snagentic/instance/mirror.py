@@ -255,10 +255,22 @@ class MirrorRepository:
             self.root, "diff", "--name-only", "--diff-filter=U"
         ).stdout.split()
         if not conflicts:
-            raise SnagenticError(
-                "git merge failed: "
-                + ((result.stderr or result.stdout).strip().splitlines() or ["unknown"])[-1]
-            )
+            detail = (result.stderr or result.stdout).strip() or "unknown error (no output)"
+            landed = git(
+                self.root, "merge-base", "--is-ancestor", tip, "HEAD", check=False
+            ).returncode == 0
+            if landed:
+                # git reported a non-zero exit (e.g. a post-merge checkout step choked on
+                # stray untracked content), but HEAD already contains the mirror tip: the
+                # merge itself committed successfully. Report success instead of a
+                # misleading failure, and keep the git diagnostic for visibility.
+                return {
+                    "status": "merged",
+                    "mirror": tip,
+                    "conflicts": [],
+                    "warning": detail,
+                }
+            raise SnagenticError(f"git merge failed: {detail}")
         return {"status": "conflicts", "mirror": tip, "conflicts": conflicts}
 
     def show(self, relative_path: str) -> str | None:

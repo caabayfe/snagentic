@@ -199,6 +199,36 @@ def test_oauth_errors_do_not_include_secrets(oauth_environment: EnvironmentConfi
     assert "access-token" not in message
 
 
+def test_cicd_style_error_surfaces_the_real_status_message(
+    environment: EnvironmentConfig,
+) -> None:
+    """sn_cicd (CI/CD API) failures are shaped like Table API ones: the message lives
+    under "result.status_message", and "result.error" is often an empty string rather
+    than absent, so it must not be mistaken for "no message"."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            400,
+            json={
+                "result": {
+                    "status": "3",
+                    "status_label": "Failed",
+                    "status_message": "Missing parameter: sys_id or scope required",
+                    "status_detail": "",
+                    "error": "",
+                }
+            },
+        )
+
+    transport = httpx.MockTransport(handler)
+    with (
+        TableApiClient(environment, transport=transport) as client,
+        pytest.raises(ServiceNowError) as exc_info,
+    ):
+        client.call("POST", "api/sn_cicd/update_set/create")
+    assert "Missing parameter: sys_id or scope required" in str(exc_info.value)
+
+
 def test_connect_error_retries_exhausted(environment: EnvironmentConfig) -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("Connection failed")

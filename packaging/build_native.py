@@ -100,12 +100,16 @@ def stage_ui(stage: Path, node: Path, *, install: bool) -> Path:
     return destination
 
 
-def stage_extension(stage: Path) -> Path:
+def stage_extension(stage: Path, node: Path, *, install: bool) -> Path:
     destination = stage / "copilot-extension"
     shutil.rmtree(destination, ignore_errors=True)
     destination.mkdir(parents=True)
     for source in sorted(EXTENSION.glob("*.mjs")):
         shutil.copy2(source, destination / source.name)
+    for name in ("package.json", "package-lock.json"):
+        shutil.copy2(EXTENSION / name, destination / name)
+    if install:
+        run([*npm_command(node), "ci", "--omit=dev", "--no-audit", "--no-fund"], destination)
     return destination
 
 
@@ -159,7 +163,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--node", help="Node.js executable to bundle (default: node on PATH)")
     parser.add_argument("--output", type=Path, default=ROOT / "dist" / "native")
     parser.add_argument("--skip-ui-install", action="store_true",
-                        help="bundle UI sources without node_modules (development only)")
+                        help="bundle UI and MCP server sources without node_modules "
+                             "(development only)")
     parser.add_argument("--no-archive", action="store_true")
     args = parser.parse_args(argv)
 
@@ -169,7 +174,7 @@ def main(argv: list[str] | None = None) -> int:
     stage = build / "stage"
     stage.mkdir(parents=True, exist_ok=True)
     ui = stage_ui(stage, node, install=not args.skip_ui_install)
-    extension = stage_extension(stage)
+    extension = stage_extension(stage, node, install=not args.skip_ui_install)
     bundle = pyinstaller(stage, build / "work", output, node, ui, extension)
     print(f"bundle: {bundle}")
     if not args.no_archive:

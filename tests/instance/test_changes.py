@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
 
 import pytest
 import yaml
@@ -82,6 +83,46 @@ def test_integrate_refuses_dirty_workspace(harness: Harness) -> None:
     harness.sync().fetch()
     with pytest.raises(ConflictError, match="commit or stash"):
         MirrorRepository(harness.paths, harness.config.mirror_branch).integrate(message="m")
+
+
+def test_integrate_reports_success_when_git_fails_after_landing_the_merge(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """git merge can advance HEAD and still exit non-zero (e.g. a post-merge checkout
+    step tripping over stray untracked content). integrate() must not report failure
+    once the mirror tip is actually reachable from HEAD."""
+    sys_id = harness.fake.insert(
+        "sys_script_include",
+        {"name": "Greeter", "script": "function greet() { return 'hi'; }", "active": "true"},
+    )
+    harness.sync().fetch()
+    repo = MirrorRepository(harness.paths, harness.config.mirror_branch)
+
+    from snagentic.instance import mirror as mirror_module
+
+    real_git = mirror_module.git
+    calls: list[tuple[str, ...]] = []
+
+    def flaky_git(root, *args, **kwargs):  # type: ignore[no-untyped-def]
+        result = real_git(root, *args, **kwargs)
+        calls.append(args)
+        if args and args[0] == "merge":
+            return subprocess.CompletedProcess(
+                args=result.args,
+                returncode=1,
+                stdout=result.stdout,
+                stderr="fatal: stash failed",
+            )
+        return result
+
+    monkeypatch.setattr(mirror_module, "git", flaky_git)
+
+    result = repo.integrate(message="m")
+
+    assert result["status"] == "merged"
+    assert result["warning"] == "fatal: stash failed"
+    assert _script_path(harness, sys_id).read_text() == "function greet() { return 'hi'; }\n"
+    assert any(args and args[0] == "merge" for args in calls)
 
 
 def test_conflicting_remote_and_local_edits_produce_git_markers(harness: Harness) -> None:

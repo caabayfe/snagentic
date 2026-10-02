@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -228,6 +229,68 @@ def test_doctor_local_reports_runtime(
     assert report["credential_store"]["default_store"] == "auto"
     assert report["ui"]["runner"] == "node" and report["ui"]["ready"] is False
     assert "copilot_extension" in report
+    assert "mcp" in report
+
+
+def test_mcp_status_reports_script_and_sdk_readiness(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    status = run(capsys, "mcp", "status")["result"]
+    extension = REPOSITORY / ".github" / "extensions" / "snagentic"
+    assert status["app"] == str(extension)
+    assert status["script"] == str(extension / "mcp-server.mjs")
+    # The repo checkout already has `npm install` run in .github/extensions/snagentic
+    # (see package.json/package-lock.json committed there), so this reports ready
+    # whenever that install is present, and not-ready (with a clear reason) otherwise.
+    assert status["sdk_installed"] == (extension / "node_modules").is_dir()
+
+
+def test_mcp_serve_reports_missing_assets_as_a_clean_json_error(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import snagentic.cli.mcpserver as mcpserver
+
+    monkeypatch.setattr(mcpserver.resources, "asset_dir", lambda name: None)
+    failed = run(capsys, "mcp", "serve")
+    assert failed["exit"] == 2
+    assert "missing from this install" in failed["error"]
+
+
+def test_mcp_serve_passes_its_own_runtime_to_the_node_child_without_touching_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression test: `snagentic mcp serve` must tell the Node MCP server which
+    interpreter/executable to use explicitly (SNAGENTIC_PYTHON/SNAGENTIC_EXECUTABLE),
+    rather than relying on `snagentic` being discoverable on PATH -- otherwise the
+    served tools silently fall back to the Docker runtime even when this very CLI
+    invocation is itself the correct native/python runtime to use."""
+    import snagentic.cli.mcpserver as mcpserver
+
+    node = tmp_path / "node"
+    node.write_text("#!/bin/sh\n")
+    node.chmod(0o755)
+    app = tmp_path / "copilot-extension"
+    (app / "node_modules" / "@modelcontextprotocol" / "sdk").mkdir(parents=True)
+    (app / "mcp-server.mjs").write_text("// stub\n")
+    monkeypatch.setattr(mcpserver.resources, "asset_dir", lambda name: app)
+    monkeypatch.setattr("snagentic.instance.ui.node_executable", lambda: str(node))
+    monkeypatch.delenv("SNAGENTIC_RUNTIME", raising=False)
+    monkeypatch.delenv("SNAGENTIC_PYTHON", raising=False)
+    monkeypatch.delenv("SNAGENTIC_EXECUTABLE", raising=False)
+    monkeypatch.setattr(mcpserver.resources, "is_frozen", lambda: False)
+
+    calls: list[dict[str, Any]] = []
+
+    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append({"command": command, **kwargs})
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(mcpserver.subprocess, "run", fake_run)
+
+    exit_code = mcpserver.mcp_serve(tmp_path)
+    assert exit_code == 0
+    assert len(calls) == 1
+    assert calls[0]["env"]["SNAGENTIC_PYTHON"] == sys.executable
 
 
 class RecordingRun:
@@ -442,7 +505,11 @@ def test_plugin_assets_are_consistent() -> None:
     assert hooks[0]["args"] == ["copilot", "hook", "pre-tool-use"]
 
     extension = (REPOSITORY / ".github/extensions/snagentic/extension.mjs").read_text()
-    tools = set(re.findall(r"""["'](snagentic_[a-z_]+)["']""", extension))
+    # The tool catalogue now lives in instance.mjs (shared with the MCP server);
+    # extension.mjs only imports it. Scan both so this check still reflects the
+    # tools actually exposed to the Copilot extension.
+    instance = (REPOSITORY / ".github/extensions/snagentic/instance.mjs").read_text()
+    tools = set(re.findall(r"""["'](snagentic_[a-z_]+)["']""", extension + instance))
     assert "snagentic_instance_apply" in tools
     agents = sorted((plugin / "agents").glob("*.agent.md"))
     assert len(agents) == 2

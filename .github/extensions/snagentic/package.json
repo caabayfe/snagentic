@@ -1,0 +1,10 @@
+{
+  "name": "snagentic-mcp-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Model Context Protocol (MCP) server exposing the snagentic instance mirror tools to any MCP-compatible client.",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.31.0"
+  }
+}
