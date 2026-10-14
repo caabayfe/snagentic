@@ -9,6 +9,6 @@
     "test": "node --test ../tests/extension/*.test.mjs ../tests/ui/*.test.mjs"
   },
   "dependencies": {
-    "playwright": "1.63.0"
+    "playwright": "1.64.0"
   }
 }
